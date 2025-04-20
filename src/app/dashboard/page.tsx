@@ -4,27 +4,26 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-type SubjectData = {
+type Subject = {
   study_style?: string;
   xp?: number;
-  sections?: Record<string, any>;
-  topics?: Record<string, any>;
 };
 
-export default function Dashboard() {
-  const [subjects, setSubjects] = useState<Record<string, SubjectData>>({});
-  const username = "louis"; // mock user
+export default function DashboardPage() {
+  const [subjects, setSubjects] = useState<Record<string, Subject>>({});
+  const username = "louis"; // hardcoded for now
 
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const userDoc = await getDoc(doc(db, "users", username));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
+        const docRef = doc(db, "users", username);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          const data = snapshot.data();
           setSubjects(data.subjects || {});
         }
       } catch (error) {
-        console.error("Failed to load subjects:", error);
+        console.error("Error loading subjects:", error);
       }
     };
 
@@ -32,28 +31,21 @@ export default function Dashboard() {
   }, [username]);
 
   return (
-    <main className="min-h-screen px-6 py-10 bg-gray-100">
-      <h1 className="text-4xl font-bold mb-6">📊 Your Dashboard</h1>
-
+    <main className="min-h-screen p-6 bg-gray-100">
+      <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
       {Object.keys(subjects).length === 0 ? (
-        <p>No subjects found. Create one to get started!</p>
+        <p>No subjects found.</p>
       ) : (
         <div className="grid gap-4">
-          {Object.entries(subjects).map(([name, subject]) => (
-            <div key={name} className="bg-white p-4 rounded shadow">
-              <h2 className="text-xl font-semibold">{name}</h2>
-              <p className="text-sm text-gray-600">
-                Study Style: {subject.study_style}
+          {Object.entries(subjects).map(([key, subject]) => (
+            <div key={key} className="bg-white p-4 rounded shadow">
+              <h2 className="text-xl font-semibold">{key}</h2>
+              <p className="text-sm text-gray-700">
+                Study Style: {subject.study_style || "N/A"}
               </p>
-              {subject.xp && (
+              {subject.xp !== undefined && (
                 <p className="text-sm mt-1">XP: {subject.xp}</p>
               )}
-              <button
-                onClick={() => console.log("TODO: View subject")}
-                className="mt-3 inline-block px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                View Subject
-              </button>
             </div>
           ))}
         </div>
