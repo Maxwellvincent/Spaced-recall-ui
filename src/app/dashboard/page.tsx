@@ -1,13 +1,19 @@
-// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
+
+type SubjectData = {
+  study_style?: string;
+  xp?: number;
+  sections?: Record<string, any>;
+  topics?: Record<string, any>;
+};
 
 export default function Dashboard() {
-  const [subjects, setSubjects] = useState<any>({});
-  const [username, setUsername] = useState("louis"); // 👈 hardcoded for now
+  const [subjects, setSubjects] = useState<Record<string, SubjectData>>({});
+  const username = "louis"; // Mocked user for now
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -23,7 +29,7 @@ export default function Dashboard() {
     };
 
     fetchSubjects();
-  }, []);
+  }, [username]);
 
   return (
     <main className="min-h-screen px-6 py-10 bg-gray-100">
@@ -33,7 +39,7 @@ export default function Dashboard() {
         <p>No subjects found. Create one to get started!</p>
       ) : (
         <div className="grid gap-4">
-          {Object.entries(subjects).map(([name, subject]: any) => (
+          {Object.entries(subjects).map(([name, subject]) => (
             <div key={name} className="bg-white p-4 rounded shadow">
               <h2 className="text-xl font-semibold">{name}</h2>
               <p className="text-sm text-gray-600">
