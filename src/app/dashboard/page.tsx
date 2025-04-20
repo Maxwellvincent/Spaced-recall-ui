@@ -13,7 +13,7 @@ type SubjectData = {
 
 export default function Dashboard() {
   const [subjects, setSubjects] = useState<Record<string, SubjectData>>({});
-  const username = "louis"; // Mocked user for now
+  const username = "louis"; // mock user
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -49,7 +49,7 @@ export default function Dashboard() {
                 <p className="text-sm mt-1">XP: {subject.xp}</p>
               )}
               <button
-                onClick={() => console.log("TODO: link to subject view")}
+                onClick={() => console.log("TODO: View subject")}
                 className="mt-3 inline-block px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 View Subject
