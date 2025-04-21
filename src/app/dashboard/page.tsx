@@ -28,6 +28,10 @@ export default function DashboardPage() {
 
           console.log("UID:", uid); // ✅ Confirm UID
           console.log("Doc exists?", userSnap.exists());
+          console.log("🔐 Logged in UID:", session?.user?.uid);
+          const docRef = doc(db, "users", session?.user?.uid ?? "undefined");
+          console.log("📄 Trying to access Firestore path: users/" + session?.user?.uid);
+
 
           if (userSnap.exists()) {
             const data = userSnap.data();
