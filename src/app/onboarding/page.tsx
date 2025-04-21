@@ -1,65 +1,76 @@
-// === src/app/onboarding/page.tsx ===
 "use client";
-import { useState, useEffect } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { db, auth } from "@/lib/firebaseConfig";
-import { useAuthState } from "react-firebase-hooks/auth";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebaseConfig";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export default function OnboardingPage() {
-  const [username, setUsername] = useState("");
-  const [theme, setTheme] = useState("dragonball");
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [theme, setTheme] = useState("dbz");
 
   useEffect(() => {
-    if (!loading && user) {
-      const checkIfUserExists = async () => {
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          router.push("/dashboard");
-        }
-      };
-      checkIfUserExists();
-    }
-  }, [user, loading]);
+    const checkUser = async () => {
+      if (!user) return;
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        router.push("/dashboard");
+      }
+    };
+    checkUser();
+  }, [user, router]);
 
   const handleSubmit = async () => {
     if (!user) return;
-    const userRef = doc(db, "users", user.uid);
-    await setDoc(userRef, {
-      username,
-      theme,
-      xp: 0,
-      subjects: {},
-    });
-    router.push("/dashboard");
+    if (!username.trim()) {
+      alert("Please enter a valid username.");
+      return;
+    }
+    const ref = doc(db, "users", user.uid);
+    try {
+      await setDoc(ref, {
+        username,
+        theme,
+        xp: 0,
+        subjects: {},
+      });
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("❌ Error saving user profile:", err);
+      alert("Something went wrong. Please try again.");
+    }
   };
 
+  if (loading) return <p className="text-center mt-6">Loading...</p>;
+
   return (
-    <div className="p-8 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4">Finish Setting Up Your Profile</h2>
+    <div className="max-w-lg mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">🎉 Welcome to Spaced Recall</h1>
+      <p className="mb-2">Choose your username and theme to get started:</p>
       <input
+        className="border p-2 w-full rounded mb-4"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        placeholder="Choose a username"
-        className="w-full p-2 border rounded mb-4"
+        placeholder="e.g. madballer9898"
       />
       <select
+        className="border p-2 w-full rounded mb-4"
         value={theme}
         onChange={(e) => setTheme(e.target.value)}
-        className="w-full p-2 border rounded mb-4"
       >
-        <option value="dragonball">Dragon Ball</option>
+        <option value="dbz">Dragon Ball Z</option>
         <option value="naruto">Naruto</option>
-        <option value="neutral">Neutral</option>
+        <option value="points">Neutral (Points Only)</option>
       </select>
       <button
         onClick={handleSubmit}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
+        className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
       >
-        Save & Continue
+        ✅ Save and Continue
       </button>
     </div>
   );
