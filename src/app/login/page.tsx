@@ -17,12 +17,12 @@ export default function LoginPage() {
   
       router.push("/dashboard");
     } catch (error) {
-      if (error instanceof Error) {
-        console.error("❌ Login failed:", error.message);
-        alert("Login error: " + error.message);
-      } else {
-        console.error("❌ Unknown error during login.");
-      }
+        if (error instanceof Error) {
+            console.error("❌ Login failed:", error.message);
+            alert("Login error: " + error.message);
+          } else {
+            console.error("❌ Unknown login error");
+          }
     }
   };
 
