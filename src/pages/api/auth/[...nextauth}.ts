@@ -20,12 +20,12 @@ export const authOptions = {
     }),
   }),
   callbacks: {
-    async session({ session, token }: any) {
-      if (session?.user && token?.sub) {
-        session.user.uid = token.sub;
-      }
-      return session;
-    },
+    async session({ session, token }) {
+        if (session?.user) {
+          session.user.uid = token.sub; // 👈 attaches the Firebase UID
+        }
+        return session;
+      },
   },
   pages: {
     signIn: "/login", // Optional: custom login page

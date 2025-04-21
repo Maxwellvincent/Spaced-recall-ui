@@ -7,7 +7,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebaseConfig"; // ✅ make sure db is exported properly
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
+  console.log("🔐 Logged in UID:", session?.user?.uid); // This might be undefined
+  console.log("🧠 Session:", session);
   const router = useRouter();
 
   const [userData, setUserData] = useState<any>(null);
