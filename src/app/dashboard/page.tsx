@@ -11,16 +11,30 @@ type Subject = {
 
 export default function DashboardPage() {
   const [subjects, setSubjects] = useState<Record<string, Subject>>({});
-  const username = "louis"; // hardcoded for now
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("username");
+    if (storedUser) {
+      setUsername(storedUser);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchSubjects = async () => {
+      if (!username) return;
+
       try {
+        console.log("Fetching subjects for user:", username);
         const docRef = doc(db, "users", username);
         const snapshot = await getDoc(docRef);
+
         if (snapshot.exists()) {
           const data = snapshot.data();
+          console.log("✅ Loaded subjects:", data.subjects);
           setSubjects(data.subjects || {});
+        } else {
+          console.log("❌ No document found for", username);
         }
       } catch (error) {
         console.error("Error loading subjects:", error);
@@ -33,8 +47,11 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen p-6 bg-gray-100">
       <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
-      {Object.keys(subjects).length === 0 ? (
-        <p>No subjects found.</p>
+
+      {!username ? (
+        <p className="text-gray-600">🔐 Please log in to view your dashboard.</p>
+      ) : Object.keys(subjects).length === 0 ? (
+        <p>No subjects found for <strong>{username}</strong>.</p>
       ) : (
         <div className="grid gap-4">
           {Object.entries(subjects).map(([key, subject]) => (
