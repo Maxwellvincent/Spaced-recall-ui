@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# Firebase Admin Credentials
+service-account.json
 .service-account.json
 
 # next.js

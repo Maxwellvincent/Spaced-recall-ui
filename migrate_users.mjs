@@ -1,11 +1,13 @@
 // migrate_user.mjs
 import admin from "firebase-admin";
-import { readFileSync } from "fs";
+
 
 // Load your service account credentials
-const serviceAccount = JSON.parse(
-  readFileSync("./service-account.json", "utf8")
-);
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+};
 
 // Initialize admin app (only once)
 if (!admin.apps.length) {
