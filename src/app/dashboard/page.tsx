@@ -15,14 +15,16 @@ export default function DashboardPage() {
       return;
     }
 
-    const unsubscribe = onSnapshot(doc(db, 'users', uid), (docSnap: DocumentData) => {
+    const userDoc = doc(db, 'users', uid);
+
+    const unsubscribe = onSnapshot(userDoc, (docSnap) => {
       if (docSnap.exists()) {
         setUserData(docSnap.data());
       }
     });
 
     return () => unsubscribe();
-  }, [uid, router]);
+  }, [uid, router]); // ✅ includes router now
 
   if (!userData) {
     return <p className="p-4">🔐 Loading your data...</p>;
@@ -31,15 +33,18 @@ export default function DashboardPage() {
   return (
     <div className="p-6">
       <h1 className="text-3xl font-bold mb-4">Welcome, {userData.username}!</h1>
+
       {userData.subjects ? (
         <div>
           <h2 className="text-xl mb-2">📚 Your Subjects:</h2>
           <ul className="list-disc ml-6">
-            {Object.entries(userData.subjects).map(([key, value]: [string, DocumentData]) => (
-              <li key={key}>
-                <strong>{key}</strong> — {value.study_style ?? 'No style set'}
-              </li>
-            ))}
+            {(Object.entries(userData.subjects) as [string, DocumentData][]).map(
+              ([subjectName, subjectData]) => (
+                <li key={subjectName}>
+                  <strong>{subjectName}</strong> — {subjectData.study_style ?? 'No style set'}
+                </li>
+              )
+            )}
           </ul>
         </div>
       ) : (
