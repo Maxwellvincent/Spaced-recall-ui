@@ -23,6 +23,7 @@ import type {
   StudyRecommendation,
   ProgressMetrics
 } from '@/types/study';
+import { generateStudyPrompt } from '@/lib/openai';
 
 type Phase = "initial" | "consolidation" | "mastery";
 
@@ -58,6 +59,13 @@ interface ExamMode {
   topicScores: { [topicName: string]: { score: number; lastAttempt: string; weakAreas: string[] } };
 }
 
+interface StudyAIPrompt {
+  prompt: string;
+  userAnswer?: string;
+  aiFeedback?: string;
+  score?: number;
+}
+
 export default function SubjectDetailsPage({ params }: { params: Promise<{ subjectName: string }> }) {
   const resolvedParams = use(params);
   const [user, loading] = useAuthState(auth);
@@ -87,7 +95,7 @@ export default function SubjectDetailsPage({ params }: { params: Promise<{ subje
   } | null>(null);
   const [recommendation, setRecommendation] = useState<StudyRecommendation | null>(null);
   const [currentFramework, setCurrentFramework] = useState<StudyFramework | null>(null);
-  const [aiPrompt, setAiPrompt] = useState<AIPrompt | null>(null);
+  const [aiPrompt, setAiPrompt] = useState<StudyAIPrompt | null>(null);
   const [userAnswer, setUserAnswer] = useState<string>("");
   const [mindmapData, setMindmapData] = useState<{
     nodes: { id: string; label: string; x: number; y: number }[];
@@ -854,6 +862,14 @@ export default function SubjectDetailsPage({ params }: { params: Promise<{ subje
     return scoreMap[activityType] || 0;
   };
 
+  const generateAIPrompt = async (phase: string, concept: Topic): Promise<StudyAIPrompt> => {
+    const prompt = await generateStudyPrompt(concept.name, phase);
+    return {
+      prompt,
+      score: 0
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1119,71 +1135,59 @@ interface StudyFrameworkProps {
   onUpdate: (framework: StudyFramework) => void;
 }
 
-interface StudyAIPrompt {
-  prompt: string;
-  userAnswer?: string;
-  aiFeedback?: string;
-  score?: number;
-}
-
-const generateAIPrompt = (phase: string, concept: Topic): StudyAIPrompt => {
-  return {
-    prompt: `Based on the ${phase} phase for the concept "${concept.name}", please explain the key points.`
-  };
-};
-
 const StudyFrameworkComponent: React.FC<StudyFrameworkProps> = ({ framework, concept, onUpdate }) => {
-  const [currentPrompt, setCurrentPrompt] = useState<StudyAIPrompt | null>(null);
+  const [currentPrompt, setCurrentPrompt] = useState<AIPrompt | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const prompt = generateAIPrompt(framework.currentPhase, concept);
-    setCurrentPrompt(prompt);
-  }, [framework.currentPhase, concept]);
-
-  const handleAnswerSubmit = (answer: string) => {
+  const handleAnswerSubmit = async (answer: string) => {
     if (!currentPrompt) return;
+    
+    setIsLoading(true);
+    try {
+      const updatedPrompt = evaluateUserAnswer(currentPrompt, answer);
+      setCurrentPrompt(updatedPrompt);
+      
+      // Update framework progress
+      const updatedFramework = {
+        ...framework,
+        progress: {
+          ...framework.progress,
+          [framework.currentPhase]: Math.min(1, framework.progress[framework.currentPhase] + 0.1)
+        }
+      };
+      onUpdate(updatedFramework);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const updatedPrompt = evaluateUserAnswer(currentPrompt, answer);
-    setCurrentPrompt(updatedPrompt);
-
-    const updatedFramework: StudyFramework = {
-      ...framework,
-      progress: {
-        ...framework.progress,
-        [framework.currentPhase]: Math.min(100, framework.progress[framework.currentPhase] + 20)
-      },
-      lastActivityDate: new Date().toISOString(),
-      nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      masteryScore: calculateMasteryScore(framework.progress),
-      retentionScore: calculateRetentionScore(framework),
-      clarityScore: calculateClarityScore(framework)
-    };
-
-    onUpdate(updatedFramework);
+  const generateNewPrompt = async () => {
+    setIsLoading(true);
+    try {
+      const prompt = await generateStudyPrompt(concept.name, framework.currentPhase);
+      const newPrompt: AIPrompt = {
+        prompt,
+        score: 0
+      };
+      setCurrentPrompt(newPrompt);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold mb-4">Study Framework Progress</h2>
-        <div className="space-y-4">
-          {Object.entries(framework.progress).map(([phase, progress]) => (
-            <div key={phase} className="space-y-2">
-              <div className="flex justify-between">
-                <span className="font-medium">{phase}</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Study Framework</h3>
+        <button
+          onClick={generateNewPrompt}
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        >
+          {isLoading ? 'Generating...' : 'New Prompt'}
+        </button>
       </div>
-
+      
       {currentPrompt && (
         <AIPromptComponent
           prompt={currentPrompt}
@@ -1195,15 +1199,21 @@ const StudyFrameworkComponent: React.FC<StudyFrameworkProps> = ({ framework, con
 };
 
 const AIPromptComponent: React.FC<{
-  prompt: StudyAIPrompt;
-  onSubmit: (answer: string) => void;
+  prompt: AIPrompt;
+  onSubmit: (answer: string) => Promise<void>;
 }> = ({ prompt, onSubmit }) => {
   const [answer, setAnswer] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(answer);
-    setAnswer('');
+    setIsSubmitting(true);
+    try {
+      await onSubmit(answer);
+      setAnswer('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1218,12 +1228,14 @@ const AIPromptComponent: React.FC<{
           className="w-full p-2 border rounded"
           rows={4}
           placeholder="Type your answer here..."
+          disabled={isSubmitting}
         />
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          disabled={isSubmitting}
         >
-          Submit Answer
+          {isSubmitting ? 'Submitting...' : 'Submit Answer'}
         </button>
       </form>
       {prompt.aiFeedback && (

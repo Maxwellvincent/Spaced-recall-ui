@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -5,6 +7,7 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { calculateXP } from '@/lib/xpSystem';
 import { generateQuestions, evaluateReasoningAnswer } from '@/lib/aiQuestionGenerator';
 import ProgressVisualization from './ProgressVisualization';
+import { generateStudyPrompt, evaluateUserAnswer } from '@/lib/openai';
 
 interface Question {
   id: string;
@@ -194,43 +197,13 @@ export default function StudyVerification({
     suggestedResources: string[];
   }> => {
     try {
-      const prompt = `Evaluate this answer to the question: "${question}"
-      
-      Answer: "${answer}"
-      Score: ${score}/100
-      
-      Provide detailed feedback including:
-      1. A comprehensive analysis of the answer
-      2. List of strengths in the response
-      3. Specific areas for improvement
-      4. Suggested learning resources or next steps
-      
-      Return as JSON: {
-        feedback: string,
-        strengths: string[],
-        areasForImprovement: string[],
-        suggestedResources: string[]
-      }`;
-
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          model: 'gpt-3.5-turbo',
-          maxTokens: 500
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate feedback');
-      }
-
-      const data = await response.json();
-      return JSON.parse(data.content);
+      const feedback = await evaluateUserAnswer(question, answer);
+      return {
+        feedback,
+        strengths: [],
+        areasForImprovement: [],
+        suggestedResources: []
+      };
     } catch (error) {
       console.error('Error generating feedback:', error);
       return {

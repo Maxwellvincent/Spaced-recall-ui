@@ -1,5 +1,6 @@
+"use client";
+
 import OpenAI from 'openai';
-import { useState, useEffect, use } from "react";
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error('Missing OpenAI API key');
@@ -9,18 +10,53 @@ export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const resolvedParams = use(params);
+// Export utility functions for AI-related operations
+export const generateStudyPrompt = async (concept: string, phase: string) => {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful study assistant that creates effective study prompts based on the Feynman technique and active recall principles."
+        },
+        {
+          role: "user",
+          content: `Create a study prompt for the concept "${concept}" in the ${phase} phase of learning.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 150
+    });
 
-const foundSubject = subjects.find((s: Subject) => s.name === resolvedParams.subjectName);
+    return response.choices[0]?.message?.content || "No response generated";
+  } catch (error) {
+    console.error("Error generating study prompt:", error);
+    return "Error generating study prompt";
+  }
+};
 
-const [newSubject, setNewSubject] = useState({
-  name: resolvedParams.subjectName,
-  description: "",
-  studyStyle: "spaced-repetition",
-  customStudyStyle: "",
-  examMode: false,
-});
+export const evaluateUserAnswer = async (prompt: string, userAnswer: string) => {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful study assistant that evaluates user answers and provides constructive feedback."
+        },
+        {
+          role: "user",
+          content: `Original prompt: "${prompt}"\nUser's answer: "${userAnswer}"\nPlease evaluate this answer and provide feedback.`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 200
+    });
 
-useEffect(() => {
-  // This useEffect block is empty, but it's kept as per the original code
-}, [user, resolvedParams.subjectName]); 
+    return response.choices[0]?.message?.content || "No feedback generated";
+  } catch (error) {
+    console.error("Error evaluating user answer:", error);
+    return "Error evaluating answer";
+  }
+}; 
