@@ -11,14 +11,18 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-
+  
       const user = result.user;
       console.log("✅ Logged in as:", user.displayName || user.email);
-
+  
       router.push("/dashboard");
-    } catch (error: any) {
-      console.error("❌ Login failed:", error.message);
-      alert("Login error: " + error.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("❌ Login failed:", error.message);
+        alert("Login error: " + error.message);
+      } else {
+        console.error("❌ Unknown error during login.");
+      }
     }
   };
 
