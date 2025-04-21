@@ -22,7 +22,7 @@ export default function DashboardPage() {
       if (!firebaseUser) {
         router.push("/");
       } else {
-        setUser(firebaseUser);
+        setUser(firebaseUser as any); // Type assertion to fix type error
         const ref = doc(db, "users", firebaseUser.uid);
         const snap = await getDoc(ref);
 
@@ -49,8 +49,8 @@ export default function DashboardPage() {
 
   const handleCreateSubject = async () => {
     if (!user || !subjectName.trim()) return;
-    const ref = doc(db, "users", user.uid);
-    const current = (await getDoc(ref)).data();
+    const ref = doc(db, "users", (user as any).uid);
+    const current = (await getDoc(ref)).data() || {};
     const updated = {
       ...(current.subjects || {}),
       [subjectName]: {
