@@ -1,35 +1,53 @@
+// === src/app/dashboard/page.tsx ===
+"use client";
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth, db } from "@/lib/firebaseConfig";
+import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function DashboardPage() {
-  const [username, setUsername] = useState("");
-  const [subjects, setSubjects] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [user, loading] = useAuthState(auth);
+  const [userData, setUserData] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          setUsername(data.username || user.email);
-          setSubjects(data.subjects || {});
+    if (!loading && user) {
+      const fetchData = async () => {
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          router.push("/onboarding");
+          return;
         }
-        setLoading(false);
-      }
-    });
+        setUserData(snap.data());
+      };
+      fetchData();
+    }
+  }, [user, loading]);
 
-    return () => unsubscribe();
-  }, []);
-
-  if (loading) return <p>Loading dashboard...</p>;
+  if (loading || !user) return <p>Loading...</p>;
+  if (!userData) return <p>Loading your dashboard...</p>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">📊 Welcome, {username}!</h1>
-      {/* render subject list, XP, progress, etc. */}
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-2">Welcome back, {userData.username}!</h1>
+      <p className="mb-4">Theme: {userData.theme} | XP: {userData.xp}</p>
+      <h2 className="text-xl font-semibold mb-2">Your Subjects:</h2>
+      {userData.subjects && Object.keys(userData.subjects).length > 0 ? (
+        <ul className="list-disc pl-6">
+          {Object.entries(userData.subjects).map(([subject, data]) => {
+            const sectionOrTopicData = data as any; // 👈 Add this line
+            return (
+              <li key={subject} className="mb-1">
+                {subject} — {Object.keys(sectionOrTopicData.sections || sectionOrTopicData.topics || {}).length} items
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p>You haven’t added any subjects yet.</p>
+      )}
     </div>
   );
 }
