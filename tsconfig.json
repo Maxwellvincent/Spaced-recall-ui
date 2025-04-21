@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "scripts/migrate-legacy-user.js", "src/app/onboarding/page.jsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "scripts/migrate-legacy-user.js", "src/app/onboarding/page.tsx"],
   "exclude": ["node_modules"]
 }
