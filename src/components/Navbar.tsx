@@ -20,19 +20,19 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="flex justify-between items-center px-6 py-4 bg-slate-900 text-white shadow">
+    <nav className="flex justify-between items-center px-6 py-4 bg-slate-900 text-white shadow-lg sticky top-0 z-50">
       <h1 className="text-xl font-bold">Spaced Recall</h1>
       {user ? (
         <button
           onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition-colors"
         >
           🚪 Logout
         </button>
       ) : (
         <button
           onClick={() => router.push("/login")}
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
+          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded transition-colors"
         >
           🔐 Login
         </button>
