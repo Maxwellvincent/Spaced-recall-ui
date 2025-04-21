@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebaseConfig";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
-export default function HomePage() {
+export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,4 +69,4 @@ export default function HomePage() {
       {error && <p className="text-red-500 mt-4">{error}</p>}
     </div>
   );
-}
+} 
