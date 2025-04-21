@@ -295,7 +295,7 @@ export default function StudyVerification({
 
   return (
     <div className="space-y-8">
-      <div className="p-6 bg-white rounded-lg shadow-lg">
+      <div className="p-6 bg-background rounded-lg shadow-lg">
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">Study Verification</h2>
           <p className="text-gray-600">
@@ -403,7 +403,7 @@ export default function StudyVerification({
         )}
 
         {showFeedback && feedback && (
-          <div className="bg-white p-6 rounded-lg shadow-lg">
+          <div className="bg-background p-6 rounded-lg shadow-lg">
             <h3 className="text-xl font-semibold mb-4">Detailed Feedback</h3>
             
             <div className="mb-6">

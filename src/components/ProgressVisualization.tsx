@@ -318,7 +318,7 @@ export default function ProgressVisualization({
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Performance Over Time</h3>
           <div className="mb-4">
             <select
@@ -333,18 +333,18 @@ export default function ProgressVisualization({
           </div>
           <Line data={scoreChartData} />
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">XP Progression</h3>
           <Line data={xpChartData} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Study Distribution</h3>
           <Doughnut data={topicDistributionData} />
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-2">Mastery Level</h3>
           <div className="flex items-center space-x-2">
             <span className="text-2xl">{masteryLevelIcon}</span>
@@ -367,7 +367,7 @@ export default function ProgressVisualization({
             </div>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-2">Next Milestone</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
@@ -386,7 +386,7 @@ export default function ProgressVisualization({
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow">
+      <div className="bg-background p-4 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">Question Type Distribution</h3>
           <button
@@ -415,7 +415,7 @@ export default function ProgressVisualization({
       </div>
 
       {showDetails && (
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-background p-4 rounded-lg shadow">
           <h3 className="text-lg font-semibold mb-4">Next Steps</h3>
           <ul className="space-y-2">
             {nextSteps.map((step, index) => (

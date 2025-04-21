@@ -133,7 +133,7 @@ export default function SubjectsPage() {
               href={`/subjects/${encodeURIComponent(subject.name)}`}
               className="block"
             >
-              <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+              <div className="bg-background rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                 <h2 className="text-xl font-semibold mb-2">{subject.name}</h2>
                 <p className="text-gray-600 mb-4">{subject.description}</p>
                 <div className="space-y-2">
