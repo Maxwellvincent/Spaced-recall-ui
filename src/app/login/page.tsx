@@ -22,6 +22,7 @@ export default function LoginPage() {
             alert("Login error: " + error.message);
           } else {
             console.error("❌ Unknown login error");
+            alert("Unknown login error");
           }
     }
   };
