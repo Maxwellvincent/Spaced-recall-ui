@@ -21,7 +21,37 @@ export default function Navbar() {
 
   return (
     <nav className="flex justify-between items-center px-6 py-4 bg-slate-900 text-white shadow-lg sticky top-0 z-50">
-      <h1 className="text-xl font-bold">Spaced Recall</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-bold">Spaced Recall</h1>
+        {user && (
+          <div className="flex space-x-4">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="text-white hover:text-blue-300"
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => router.push("/subjects")}
+              className="text-white hover:text-blue-300"
+            >
+              Subjects
+            </button>
+            <button
+              onClick={() => router.push("/study-logger")}
+              className="text-white hover:text-blue-300"
+            >
+              Study Logger
+            </button>
+            <button
+              onClick={() => router.push("/rewards")}
+              className="text-white hover:text-blue-300"
+            >
+              Rewards
+            </button>
+          </div>
+        )}
+      </div>
       {user ? (
         <button
           onClick={handleLogout}
