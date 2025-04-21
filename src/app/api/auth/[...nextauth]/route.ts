@@ -12,7 +12,7 @@ const firebaseConfig = {
   }),
 };
 
-const handler = NextAuth({
+const authOptions: NextAuthOptions = {
   adapter: FirestoreAdapter(firebaseConfig),
   providers: [],
   callbacks: {
@@ -23,6 +23,7 @@ const handler = NextAuth({
       return session;
     },
   },
-} as NextAuthOptions);
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST }; 
