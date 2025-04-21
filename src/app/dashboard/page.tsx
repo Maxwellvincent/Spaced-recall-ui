@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, User } from "firebase/auth";
 
 type Subject = {
   study_style?: string;
@@ -11,21 +12,31 @@ type Subject = {
 
 export default function DashboardPage() {
   const [subjects, setSubjects] = useState<Record<string, Subject>>({});
+  const [user, setUser] = useState<User | null>(null);
   const [username, setUsername] = useState<string | null>(null);
 
+  // Listen to Firebase Auth
   useEffect(() => {
-    const storedUser = localStorage.getItem("username");
-    if (storedUser) {
-      setUsername(storedUser);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        const uid = firebaseUser.displayName || firebaseUser.uid;
+        setUsername(uid); // use displayName as Firestore doc ID if available
+      } else {
+        setUser(null);
+        setUsername(null);
+      }
+    });
+
+    return () => unsubscribe(); // clean up listener
   }, []);
 
+  // Fetch subjects from Firestore
   useEffect(() => {
     const fetchSubjects = async () => {
       if (!username) return;
 
       try {
-        console.log("Fetching subjects for user:", username);
         const docRef = doc(db, "users", username);
         const snapshot = await getDoc(docRef);
 
@@ -34,7 +45,7 @@ export default function DashboardPage() {
           console.log("✅ Loaded subjects:", data.subjects);
           setSubjects(data.subjects || {});
         } else {
-          console.log("❌ No document found for", username);
+          console.log("❌ No document found for user:", username);
         }
       } catch (error) {
         console.error("Error loading subjects:", error);
@@ -48,7 +59,7 @@ export default function DashboardPage() {
     <main className="min-h-screen p-6 bg-gray-100">
       <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
 
-      {!username ? (
+      {!user ? (
         <p className="text-gray-600">🔐 Please log in to view your dashboard.</p>
       ) : Object.keys(subjects).length === 0 ? (
         <p>No subjects found for <strong>{username}</strong>.</p>
