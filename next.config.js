@@ -32,6 +32,16 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  output: 'standalone',
+  reactStrictMode: true,
+  distDir: '.next',
+  staticPageGenerationTimeout: 60,
+  images: {
+    minimumCacheTTL: 60,
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['firebase-admin'],
+  },
 };
 
 export default nextConfig; 
