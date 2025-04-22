@@ -1,374 +1,347 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { auth, db } from "@/lib/firebaseConfig";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { FSRS } from "@/lib/fsrs";
-import { CalendarService } from "@/lib/calendar";
-import StudyHistory from "@/components/StudyHistory";
-import { useSession } from 'next-auth/react';
-import { collection, query, where, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import StudyCalendar from '@/components/StudyCalendar';
-import StudyGoals from '@/components/StudyGoals';
-import StudyVerification from '@/components/StudyVerification';
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { Subject, Topic } from "@/types/study";
+import { Loader2, Scroll, Flame, Brain, Star } from "lucide-react";
 
-interface StudySession {
+interface LoggedStudySession {
+  userId: string;
   subject: string;
   topic: string;
   duration: number;
-  date: string;
-  studyStyle: string;
-  customStudyStyle?: string;
-  xpEarned: number;
+  confidence: number;
   notes?: string;
-  // Anki-specific fields
+  timestamp: Date;
   cardsReviewed?: number;
   newCards?: number;
-  reviewTime?: number;
+  jutsuMastery?: {
+    chakraControl: number;
+    technique: number;
+    understanding: number;
+  };
 }
 
 interface WeakArea {
   subject: string;
-  topic: string;
+  topic: Topic;
   confidence: number;
   lastReviewed: string;
   nextReview: string;
 }
 
-type StudyStyle = 'visual' | 'auditory' | 'reading' | 'kinesthetic' | 'mixed';
+interface UserPreferences {
+  theme: string;
+  character?: string;
+}
 
-export default function StudyLoggerPage() {
-  const [user, loading] = useAuthState(auth);
+const JUTSU_DESCRIPTIONS = {
+  chakraControl: "How well you can mold and control chakra during practice",
+  technique: "The precision and effectiveness of your jutsu execution",
+  understanding: "Your grasp of the underlying principles and theory"
+};
+
+export default function StudyLogger() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session } = useSession();
-  const [subjects, setSubjects] = useState<{ [key: string]: any }>({});
+  const [user] = useAuthState(auth);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
-  const [studyTime, setStudyTime] = useState(0);
+  const [duration, setDuration] = useState(30);
   const [confidence, setConfidence] = useState(50);
   const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [weakAreas, setWeakAreas] = useState<WeakArea[]>([]);
-  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [showVerification, setShowVerification] = useState(false);
-  const [verificationData, setVerificationData] = useState<{
-    subject: string;
-    topic: string;
-    duration: number;
-    type: 'reading' | 'practice' | 'review';
-  } | null>(null);
-  const [duration, setDuration] = useState(0);
   const [cardsReviewed, setCardsReviewed] = useState(0);
   const [newCards, setNewCards] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [userTheme, setUserTheme] = useState<string>("classic");
+  const [userCharacter, setUserCharacter] = useState<string | null>(null);
+  const [jutsuMastery, setJutsuMastery] = useState({
+    chakraControl: 50,
+    technique: 50,
+    understanding: 50
+  });
 
   useEffect(() => {
-    if (!session?.user?.email) return;
+    if (!user) return;
 
-    const fetchUserData = async () => {
+    const fetchUserPreferences = async () => {
       try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', session.user.email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data();
-          setSubjects(userData.subjects || {});
-          
-          // Set subject and topic from URL params if they exist
-          const subjectParam = searchParams.get("subject");
-          const topicParam = searchParams.get("topic");
-          if (subjectParam && userData.subjects[subjectParam]) {
-            setSelectedSubject(subjectParam);
-            if (topicParam && userData.subjects[subjectParam].topics[topicParam]) {
-              setSelectedTopic(topicParam);
-            }
-          }
-
-          // Find weak areas
-          const weakAreasList: WeakArea[] = [];
-          Object.entries(userData.subjects || {}).forEach(([subjectName, subject]: [string, any]) => {
-            Object.entries(subject.topics || {}).forEach(([topicName, topic]: [string, any]) => {
-              if (topic.confidence < 70 || 
-                  (topic.nextReview && new Date(topic.nextReview) < new Date())) {
-                weakAreasList.push({
-                  subject: subjectName,
-                  topic: topicName,
-                  confidence: topic.confidence,
-                  lastReviewed: topic.lastReviewed,
-                  nextReview: topic.nextReview,
-                });
-              }
-            });
-          });
-          setWeakAreas(weakAreasList.sort((a, b) => a.confidence - b.confidence));
-
-          // Initialize calendar service and fetch upcoming sessions
-          if (userData.googleAccessToken) {
-            await CalendarService.initialize(userData.googleAccessToken);
-            const sessions = await CalendarService.getUpcomingStudySessions();
-            setUpcomingSessions(sessions);
-          }
-
-          // Load study sessions
-          if (selectedSubject) {
-            const subjectSessions = userData.subjects[selectedSubject]?.sessions || [];
-            setSessions(subjectSessions);
-          }
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as UserPreferences;
+          setUserTheme(userData.theme || "classic");
+          setUserCharacter(userData.character || null);
         }
-      } catch (err: unknown) {
-        console.error("Error fetching user data:", err);
-        setError("Failed to load subjects");
+      } catch (err) {
+        console.error('Error fetching user preferences:', err);
       }
     };
 
-    fetchUserData();
-  }, [session, searchParams, selectedSubject]);
+    fetchUserPreferences();
+  }, [user]);
 
-  const calculateXP = (duration: number, confidence: number, phase: number) => {
-    // Base XP from time (1 XP per 5 minutes)
-    const timeXP = Math.floor(duration / 5);
-    
-    // Confidence multiplier (50% = 1x, 100% = 2x)
-    const confidenceMultiplier = 1 + (confidence / 100);
-    
-    // Phase multiplier (higher phases give more XP)
-    const phaseMultiplier = 1 + ((phase - 1) * 0.25);
-    
-    return Math.floor(timeXP * confidenceMultiplier * phaseMultiplier);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedSubject || !selectedTopic || !duration) return;
+    if (!user) {
+      setError("Please log in to log a study session");
+      return;
+    }
+
+    if (!selectedSubject || !selectedTopic) {
+      setError("Please select both a subject and topic");
+      return;
+    }
 
     try {
-      const userDoc = doc(db, 'users', user.uid);
-      const userData = await getDoc(userDoc);
-      const subjects = userData.data()?.subjects || [];
-      
-      const subject = subjects.find((s: Subject) => s.name === selectedSubject);
-      if (!subject) return;
-
-      // Calculate XP based on study style and duration
-      let xpEarned = Math.floor(duration * 10); // Base XP: 10 XP per minute
-      
-      // Additional XP for Anki sessions
-      if (subject.studyStyle === 'custom' && subject.customStudyStyle?.toLowerCase() === 'anki') {
-        const cardsPerMinute = cardsReviewed ? cardsReviewed / duration : 0;
-        if (cardsPerMinute > 0) {
-          xpEarned += Math.floor(cardsPerMinute * 5); // Bonus XP for card review rate
-        }
-        if (newCards) {
-          xpEarned += newCards * 2; // Bonus XP for new cards
-        }
-      }
-
-      const session: StudySession = {
+      const sessionData: LoggedStudySession = {
+        userId: user.uid,
         subject: selectedSubject,
         topic: selectedTopic,
         duration,
-        date: new Date().toISOString(),
-        studyStyle: subject.studyStyle,
-        customStudyStyle: subject.customStudyStyle,
-        xpEarned,
+        confidence,
         notes,
+        timestamp: new Date(),
         cardsReviewed,
         newCards,
-        reviewTime: duration
+        ...(userTheme === "naruto" && {
+          jutsuMastery: {
+            chakraControl: jutsuMastery.chakraControl,
+            technique: jutsuMastery.technique,
+            understanding: jutsuMastery.understanding
+          }
+        })
       };
 
-      // Update subject's total study time and XP
-      const updatedSubjects = subjects.map((s: Subject) => {
-        if (s.name === selectedSubject) {
-          return {
-            ...s,
-            totalStudyTime: s.totalStudyTime + duration,
-            xp: s.xp + xpEarned,
-            sessions: [...s.sessions, session]
-          };
-        }
-        return s;
-      });
-
-      await updateDoc(userDoc, { subjects: updatedSubjects });
+      await addDoc(collection(db, "studySessions"), sessionData);
+      setMessage("Training session logged successfully! Your ninja way grows stronger!");
       
-      setSuccess('Study session logged successfully!');
-      setSelectedSubject('');
-      setSelectedTopic('');
-      setDuration(0);
-      setNotes('');
+      // Reset form
+      setSelectedSubject("");
+      setSelectedTopic("");
+      setDuration(30);
+      setConfidence(50);
+      setNotes("");
       setCardsReviewed(0);
       setNewCards(0);
-      setError(null);
-    } catch (err) {
-      setError('Failed to log study session');
-      console.error('Error logging study session:', err);
-    }
-  };
-
-  const handleEndSession = () => {
-    if (isActive) {
-      const endTime = new Date();
-      const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000 / 60);
-      
-      setVerificationData({
-        subject: selectedSubject,
-        topic: selectedTopic,
-        duration,
-        type: 'reading' // Default to reading, can be changed based on session type
+      setJutsuMastery({
+        chakraControl: 50,
+        technique: 50,
+        understanding: 50
       });
-      setShowVerification(true);
-      setIsActive(false);
+      
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error("Error logging study session:", err);
+      setError("Failed to log training session");
     }
   };
 
-  const handleVerificationComplete = (xpEarned: number) => {
-    setShowVerification(false);
-    setVerificationData(null);
-    // Update XP in the UI or show a success message
-    setMessage(`Session completed! Earned ${xpEarned} XP`);
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  if (loading) return <div>Loading...</div>;
   if (!user) {
     router.push("/login");
     return null;
   }
 
-  const availableTopics = selectedSubject ? Object.keys(subjects[selectedSubject]?.topics || {}) : [];
+  const getThemeTitle = () => {
+    if (userTheme === "naruto") {
+      return "Log Training Session";
+    }
+    return "Log Study Session";
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Study Logger</h1>
-      
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-4">
-        {/* Subject and Topic selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subject
-            </label>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full p-2 border rounded-md"
-              required
-            >
-              <option value="">Select a subject</option>
-              {subjects.map((subject) => (
-                <option key={subject.name} value={subject.name}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Topic
-            </label>
-            <select
-              value={selectedTopic}
-              onChange={(e) => setSelectedTopic(e.target.value)}
-              className="w-full p-2 border rounded-md"
-              required
-            >
-              <option value="">Select a topic</option>
-              {selectedSubject && subjects
-                .find((s) => s.name === selectedSubject)
-                ?.topics.map((topic) => (
-                  <option key={topic} value={topic}>
-                    {topic}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Duration input */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Duration (minutes)
-          </label>
-          <input
-            type="number"
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            className="w-full p-2 border rounded-md"
-            min="1"
-            required
-          />
-        </div>
-
-        {/* Anki-specific fields */}
-        {selectedSubject && subjects.find((s) => s.name === selectedSubject)?.studyStyle === 'custom' && 
-         subjects.find((s) => s.name === selectedSubject)?.customStudyStyle?.toLowerCase() === 'anki' && (
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="max-w-2xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-2">{getThemeTitle()}</h1>
+        <p className="text-slate-400 mb-6">Track your progress and growth</p>
+        
+        <form onSubmit={handleSubmitSession} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cards Reviewed
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Subject
               </label>
-              <input
-                type="number"
-                value={cardsReviewed}
-                onChange={(e) => setCardsReviewed(Number(e.target.value))}
-                className="w-full p-2 border rounded-md"
-                min="0"
-              />
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a subject</option>
+                {subjects.map((subject) => (
+                  <option key={`subject-${subject.name}`} value={subject.name}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                New Cards
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Topic
+              </label>
+              <select
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required
+              >
+                <option value="">Select a topic</option>
+                {selectedSubject &&
+                  subjects
+                    .find((s) => s.name === selectedSubject)
+                    ?.topics.map((topic) => (
+                      <option key={`topic-${topic.name}`} value={topic.name}>
+                        {topic.name}
+                      </option>
+                    ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">
+              {userTheme === "naruto" ? "Training Duration (minutes)" : "Duration (minutes)"}
+            </label>
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              min="1"
+              required
+            />
+          </div>
+
+          {userTheme === "naruto" ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-slate-200">Jutsu Mastery Assessment</h3>
+              {Object.entries(jutsuMastery).map(([key, value]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-slate-300">
+                      {key.split(/(?=[A-Z])/).join(" ")}
+                    </label>
+                    <span className="text-sm text-slate-400">
+                      {JUTSU_DESCRIPTIONS[key as keyof typeof jutsuMastery]}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    value={value}
+                    onChange={(e) => setJutsuMastery(prev => ({
+                      ...prev,
+                      [key]: Number(e.target.value)
+                    }))}
+                    className="w-full"
+                    min="0"
+                    max="100"
+                    step="5"
+                  />
+                  <div className="text-right text-sm text-orange-400">{value}%</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Confidence (%)
               </label>
               <input
-                type="number"
-                value={newCards}
-                onChange={(e) => setNewCards(Number(e.target.value))}
-                className="w-full p-2 border rounded-md"
+                type="range"
+                value={confidence}
+                onChange={(e) => setConfidence(Number(e.target.value))}
+                className="w-full"
                 min="0"
+                max="100"
+                step="5"
               />
+              <div className="text-right text-sm text-blue-400">{confidence}%</div>
             </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1">
+              {userTheme === "naruto" ? "Training Notes" : "Notes"}
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              rows={3}
+              placeholder={userTheme === "naruto" ? "Record your training observations and insights..." : "Add your study notes..."}
+            />
+          </div>
+
+          {selectedSubject &&
+            subjects.find((s) => s.name === selectedSubject)?.studyStyle === "anki" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Cards Reviewed
+                  </label>
+                  <input
+                    type="number"
+                    value={cardsReviewed}
+                    onChange={(e) => setCardsReviewed(Number(e.target.value))}
+                    className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    New Cards
+                  </label>
+                  <input
+                    type="number"
+                    value={newCards}
+                    onChange={(e) => setNewCards(Number(e.target.value))}
+                    className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    min="0"
+                  />
+                </div>
+              </div>
+            )}
+
+          <button
+            type="submit"
+            className={`w-full px-4 py-2 rounded-lg flex items-center justify-center gap-2 ${
+              userTheme === "naruto"
+                ? "bg-orange-600 hover:bg-orange-700"
+                : "bg-blue-600 hover:bg-blue-700"
+            } text-white transition-colors`}
+          >
+            {userTheme === "naruto" ? (
+              <>
+                <Flame className="h-5 w-5" />
+                Log Training Session
+              </>
+            ) : (
+              <>
+                <Scroll className="h-5 w-5" />
+                Log Study Session
+              </>
+            )}
+          </button>
+        </form>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-900/50 border border-red-500 text-red-200 rounded-lg">
+            {error}
           </div>
         )}
 
-        {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full p-2 border rounded-md"
-            rows={3}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-        >
-          Log Study Session
-        </button>
-      </form>
-
-      {error && (
-        <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="mt-4 p-4 bg-green-100 text-green-700 rounded-md">
-          {success}
-        </div>
-      )}
+        {message && (
+          <div className="mt-4 p-4 bg-green-900/50 border border-green-500 text-green-200 rounded-lg">
+            {message}
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

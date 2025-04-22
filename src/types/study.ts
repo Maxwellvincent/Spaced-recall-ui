@@ -1,23 +1,43 @@
+import { activityTypes, difficultyLevels } from "@/lib/xpSystem";
+
 export interface StudyPhase {
-  type: 'initial' | 'consolidation' | 'mastery';
-  xpEarned: number;
-  status: 'completed' | 'in-progress';
-  activities: {
-    type: 'video' | 'book' | 'recall' | 'mindmap' | 'questions' | 'teaching';
-    xp: number;
-    completed: boolean;
-    notes?: string;
-  }[];
+  name: string;
+  description: string;
+  completed: boolean;
+  score?: number;
 }
 
 export interface StudySession {
+  id: string;
   date: string;
   duration: number;
-  rating: number;
   notes?: string;
-  nextReviewDate: string;
-  phase: StudyPhase;
-  totalXpEarned: number;
+  xpGained: number;
+  masteryGained: number;
+  activityType: keyof typeof activityTypes;
+  difficulty: keyof typeof difficultyLevels;
+}
+
+export interface StudyTopic {
+  id: string;
+  name: string;
+  description: string;
+  masteryLevel: number;
+  lastStudied: string;
+  totalStudyTime: number;
+  concepts: StudyTopic[];
+  xp: number;
+  level: number;
+  activities: {
+    id: string;
+    type: 'video' | 'book' | 'recall' | 'mindmap' | 'questions' | 'teaching';
+    status: 'completed' | 'in-progress';
+    description: string;
+    duration: number;
+  }[];
+  currentPhase?: 'initial' | 'consolidation' | 'mastery';
+  studySessions?: StudySession[];
+  framework?: StudyFramework;
 }
 
 export interface Topic {
@@ -29,32 +49,33 @@ export interface Topic {
   examScore?: number;
   weakAreas?: string[];
   concepts?: Topic[];
+  currentPhase: string;
   studySessions?: StudySession[];
-  fsrsParams?: {
-    stability: number;
-    difficulty: number;
-    retrievability: number;
-    lastReview: string;
+  framework?: StudyFramework;
+  mindmap?: {
+    nodes: Array<{ id: string; label: string }>;
+    edges: Array<{ from: string; to: string }>;
   };
-  currentPhase?: 'initial' | 'consolidation' | 'mastery';
+  metrics?: {
+    backtestWinRate?: number;
+    forwardTestWinRate?: number;
+    liveTradeWinRate?: number;
+    totalTrades?: number;
+    profitFactor?: number;
+    averageRR?: number;
+  };
   xp: number;
   level: number;
-  framework?: StudyFramework;
-  aiPrompts?: AIPrompt[];
-  resources?: StudyResource[];
-  mindmap?: {
-    nodes: {
-      id: string;
-      label: string;
-      x: number;
-      y: number;
-    }[];
-    edges: {
-      from: string;
-      to: string;
-      label?: string;
-    }[];
-  };
+  activities?: {
+    id: string;
+    type: keyof typeof activityTypes;
+    status: 'completed' | 'in-progress';
+    description: string;
+    duration: number;
+    completedAt?: string;
+    xpGained?: number;
+    masteryGained?: number;
+  }[];
 }
 
 export interface StudyFramework {
@@ -74,9 +95,15 @@ export interface StudyFramework {
 }
 
 export interface AIPrompt {
-  prompt: string;
-  userAnswer?: string;
-  aiFeedback?: string;
+  topic: string;
+  question: string;
+  userAnswer: string;
+  subject: string;
+}
+
+export interface AIResponse {
+  isCorrect: boolean;
+  aiFeedback: string;
   score?: number;
 }
 

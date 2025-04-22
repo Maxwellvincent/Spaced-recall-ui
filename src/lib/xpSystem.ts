@@ -1,8 +1,52 @@
-import OpenAI from 'openai';
+"use client";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Function to generate custom theme using GPT
+export async function generateCustomTheme(
+  preferences: {
+    interests: string[];
+    favoriteBooks?: string[];
+    favoriteMovies?: string[];
+    learningStyle?: string;
+  }
+): Promise<ThemeConfig> {
+  const prompt = `Create a learning theme based on these preferences:
+    Interests: ${preferences.interests.join(', ')}
+    ${preferences.favoriteBooks ? `Favorite Books: ${preferences.favoriteBooks.join(', ')}` : ''}
+    ${preferences.favoriteMovies ? `Favorite Movies: ${preferences.favoriteMovies.join(', ')}` : ''}
+    ${preferences.learningStyle ? `Learning Style: ${preferences.learningStyle}` : ''}
+
+    Generate a theme with:
+    1. A unique name
+    2. A brief description
+    3. 5 avatar levels with names, descriptions, and image paths
+    4. An XP multiplier (between 1.0 and 1.5)
+    
+    Format the response as a JSON object matching the ThemeConfig interface.`;
+  try {
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model: "gpt-4",
+        maxTokens: 1000
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate theme');
+    }
+
+    const data = await response.json();
+    const themeConfig = JSON.parse(data.content);
+    return themeConfig;
+  } catch (error) {
+    console.error("Error generating custom theme:", error);
+    return defaultThemes.neutral;
+  }
+}
 
 // Base XP thresholds that can be modified by theme
 export const baseXPThresholds = [
@@ -71,193 +115,81 @@ export const defaultThemes: { [key: string]: ThemeConfig } = {
   }
 };
 
-// Function to generate custom theme using GPT
-export async function generateCustomTheme(
-  preferences: {
-    interests: string[];
-    favoriteBooks?: string[];
-    favoriteMovies?: string[];
-    learningStyle?: string;
-  }
-): Promise<ThemeConfig> {
-  const prompt = `Create a learning theme based on these preferences:
-    Interests: ${preferences.interests.join(', ')}
-    ${preferences.favoriteBooks ? `Favorite Books: ${preferences.favoriteBooks.join(', ')}` : ''}
-    ${preferences.favoriteMovies ? `Favorite Movies: ${preferences.favoriteMovies.join(', ')}` : ''}
-    ${preferences.learningStyle ? `Learning Style: ${preferences.learningStyle}` : ''}
-
-    Generate a theme with:
-    1. A unique name
-    2. A brief description
-    3. 5 avatar levels with names, descriptions, and image paths
-    4. An XP multiplier (between 1.0 and 1.5)
-    
-    Format the response as a JSON object matching the ThemeConfig interface.`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-    });
-
-    const themeConfig = JSON.parse(response.choices[0].message.content);
-    return themeConfig;
-  } catch (error) {
-    console.error("Error generating custom theme:", error);
-    return defaultThemes.neutral;
-  }
-}
-
 // Activity types and their base XP multipliers
 export const activityTypes = {
-  study: {
-    name: 'Study Session',
-    baseMultiplier: 1,
-    factors: ['duration', 'difficulty', 'focus']
-  },
-  reading: {
-    name: 'Reading',
-    baseMultiplier: 1.2,
-    factors: ['bookLength', 'gradeLevel', 'comprehension']
-  },
-  quiz: {
-    name: 'Quiz',
-    baseMultiplier: 1.5,
-    factors: ['difficulty', 'performance', 'timeTaken']
-  },
-  project: {
-    name: 'Project',
-    baseMultiplier: 2,
-    factors: ['complexity', 'quality', 'originality']
-  },
-  practice: {
-    name: 'Practice Problems',
-    baseMultiplier: 1.3,
-    factors: ['difficulty', 'accuracy', 'speed']
-  },
-  discussion: {
-    name: 'Group Discussion',
-    baseMultiplier: 1.4,
-    factors: ['participation', 'quality', 'peerLearning']
-  },
-  teaching: {
-    name: 'Teaching Others',
-    baseMultiplier: 1.8,
-    factors: ['clarity', 'engagement', 'effectiveness']
-  },
-  research: {
-    name: 'Research',
-    baseMultiplier: 1.6,
-    factors: ['depth', 'sources', 'originality']
-  }
+  backtesting: { name: 'Backtesting', baseXp: 50, factors: ['complexity', 'duration'] },
+  paperTrading: { name: 'Paper Trading', baseXp: 40, factors: ['risk', 'duration'] },
+  technicalAnalysis: { name: 'Technical Analysis', baseXp: 45, factors: ['depth', 'duration'] },
+  fundamentalAnalysis: { name: 'Fundamental Analysis', baseXp: 45, factors: ['depth', 'duration'] },
+  riskManagement: { name: 'Risk Management', baseXp: 35, factors: ['complexity', 'duration'] },
+  tradingPsychology: { name: 'Trading Psychology', baseXp: 30, factors: ['reflection', 'duration'] },
+  marketAnalysis: { name: 'Market Analysis', baseXp: 40, factors: ['depth', 'duration'] },
+  strategyDevelopment: { name: 'Strategy Development', baseXp: 50, factors: ['complexity', 'duration'] },
+  tradeJournaling: { name: 'Trade Journaling', baseXp: 25, factors: ['reflection', 'duration'] },
+  study: { name: 'Study Session', baseXp: 30, factors: ['difficulty', 'duration'] },
+  review: { name: 'Review Session', baseXp: 25, factors: ['difficulty', 'duration'] },
+  practice: { name: 'Practice Session', baseXp: 35, factors: ['difficulty', 'duration'] },
 };
 
-// Enhanced XP calculation with more factors
-export function calculateXP(activity: {
-  type: keyof typeof activityTypes;
+export const difficultyLevels = {
+  easy: { name: 'Easy', multiplier: 0.8 },
+  medium: { name: 'Medium', multiplier: 1.0 },
+  hard: { name: 'Hard', multiplier: 1.3 },
+  expert: { name: 'Expert', multiplier: 1.6 },
+};
+
+export const calculateSessionXP = ({
+  activityType,
+  difficulty,
+  duration,
+  currentLevel = 1,
+}: {
+  activityType: keyof typeof activityTypes;
+  difficulty: keyof typeof difficultyLevels;
   duration: number;
-  difficulty: number;
-  // Common factors
-  focus?: number;        // 0-100
-  performance?: number;  // 0-100
-  quality?: number;      // 0-100
-  // Reading specific
-  bookLength?: number;   // pages
-  gradeLevel?: number;   // 1-12
-  comprehension?: number; // 0-100
-  // Quiz specific
-  timeTaken?: number;    // minutes
-  // Project specific
-  complexity?: number;   // 1-10
-  originality?: number;  // 0-100
-  // Practice specific
-  accuracy?: number;     // 0-100
-  speed?: number;        // problems per hour
-  // Discussion specific
-  participation?: number; // 0-100
-  peerLearning?: number;  // 0-100
-  // Teaching specific
-  clarity?: number;      // 0-100
-  engagement?: number;   // 0-100
-  effectiveness?: number; // 0-100
-  // Research specific
-  depth?: number;        // 1-10
-  sources?: number;      // number of sources
-}): number {
-  const typeConfig = activityTypes[activity.type];
-  let baseXP = 0;
+  currentLevel?: number;
+}): { xp: number; masteryGained: number } => {
+  const activity = activityTypes[activityType];
+  const difficultyMultiplier = difficultyLevels[difficulty].multiplier;
+  
+  // Base XP calculation
+  let baseXp = activity.baseXp;
+  
+  // Duration factor (XP per 30 minutes, with diminishing returns)
+  const durationMultiplier = Math.pow(duration / 30, 0.8); // Diminishing returns for longer sessions
+  
+  // Level bonus (small bonus for higher levels to encourage progression)
+  const levelMultiplier = 1 + (Math.log10(currentLevel) * 0.1);
+  
+  // Calculate final XP
+  const totalXp = Math.round(
+    baseXp * difficultyMultiplier * durationMultiplier * levelMultiplier
+  );
+  
+  // Calculate mastery gained (based on difficulty and duration)
+  // More difficult sessions give more mastery, but with diminishing returns
+  const masteryGained = Math.min(
+    20, // Cap mastery gain at 20% per session
+    Math.round(
+      (difficultyMultiplier * Math.sqrt(duration / 30) * 5) // Base mastery gain
+    )
+  );
+  
+  return {
+    xp: totalXp,
+    masteryGained,
+  };
+};
 
-  // Calculate base XP based on activity type
-  switch (activity.type) {
-    case 'study':
-      baseXP = activity.duration * (activity.difficulty / 10) * (activity.focus || 50) / 50;
-      break;
-    case 'reading':
-      if (activity.bookLength && activity.gradeLevel) {
-        baseXP = (activity.bookLength / 100) * 
-                 (activity.gradeLevel / 10) * 
-                 (activity.difficulty / 10) * 
-                 (activity.comprehension || 50) / 50;
-      }
-      break;
-    case 'quiz':
-      baseXP = 50 * 
-               (activity.difficulty / 10) * 
-               (activity.performance || 50) / 50 * 
-               (activity.timeTaken ? 60 / activity.timeTaken : 1);
-      break;
-    case 'project':
-      baseXP = 100 * 
-               (activity.complexity || 5) * 
-               (activity.quality || 50) / 50 * 
-               (activity.originality || 50) / 50;
-      break;
-    case 'practice':
-      baseXP = 30 * 
-               (activity.difficulty / 10) * 
-               (activity.accuracy || 50) / 50 * 
-               (activity.speed || 10) / 10;
-      break;
-    case 'discussion':
-      baseXP = 40 * 
-               (activity.participation || 50) / 50 * 
-               (activity.quality || 50) / 50 * 
-               (activity.peerLearning || 50) / 50;
-      break;
-    case 'teaching':
-      baseXP = 60 * 
-               (activity.clarity || 50) / 50 * 
-               (activity.engagement || 50) / 50 * 
-               (activity.effectiveness || 50) / 50;
-      break;
-    case 'research':
-      baseXP = 80 * 
-               (activity.depth || 5) * 
-               (activity.sources || 5) / 5 * 
-               (activity.originality || 50) / 50;
-      break;
-  }
-
-  // Apply activity type multiplier
-  baseXP *= typeConfig.baseMultiplier;
-
-  // Apply theme multiplier (if provided)
-  if (activity.theme) {
-    baseXP *= activity.theme.xpMultiplier;
-  }
-
-  // Round to nearest integer
-  return Math.round(baseXP);
-}
-
-// Get level from XP with theme multiplier
+// Get current level based on XP
 export function getLevelFromXP(xp: number, theme: ThemeConfig): number {
   const adjustedXP = xp / theme.xpMultiplier;
-  for (let i = baseXPThresholds.length - 1; i >= 0; i--) {
-    if (adjustedXP >= baseXPThresholds[i]) return i + 1;
+  for (let i = 0; i < baseXPThresholds.length; i++) {
+    if (adjustedXP < baseXPThresholds[i]) {
+      return i;
+    }
   }
-  return 1;
+  return baseXPThresholds.length;
 }
 
 // Get progress to next level
@@ -267,33 +199,34 @@ export function getProgressToNextLevel(xp: number, theme: ThemeConfig): {
   percent: number;
 } {
   const adjustedXP = xp / theme.xpMultiplier;
-  const level = getLevelFromXP(xp, theme);
-  const currentLevelXP = baseXPThresholds[level - 1] || 0;
-  const nextLevelXP = baseXPThresholds[level] || baseXPThresholds[baseXPThresholds.length - 1];
-  const earned = adjustedXP - currentLevelXP;
-  const required = nextLevelXP - currentLevelXP;
-  const percent = Math.min(100, Math.round((earned / required) * 100));
+  const currentLevel = getLevelFromXP(xp, theme);
+  const currentThreshold = baseXPThresholds[currentLevel - 1] || 0;
+  const nextThreshold = baseXPThresholds[currentLevel] || baseXPThresholds[baseXPThresholds.length - 1];
+  
+  const currentLevelXP = adjustedXP - currentThreshold;
+  const neededXP = nextThreshold - currentThreshold;
+  const percent = Math.min(100, Math.round((currentLevelXP / neededXP) * 100));
 
   return {
-    currentXP: Math.round(earned * theme.xpMultiplier),
-    neededXP: Math.round(required * theme.xpMultiplier),
+    currentXP: Math.round(currentLevelXP),
+    neededXP: Math.round(neededXP),
     percent
   };
 }
 
 // Get avatar for current level
 export function getAvatarForLevel(theme: ThemeConfig, level: number): AvatarLevel {
-  return theme.avatarLevels.reduce((acc, avatar) => 
-    level >= avatar.level ? avatar : acc, theme.avatarLevels[0]
-  );
+  return theme.avatarLevels.reduce((prev, curr) => {
+    return (level >= curr.level && curr.level > prev.level) ? curr : prev;
+  });
 }
 
-// Get available themes
+// Get list of available themes
 export function getAvailableThemes(): ThemeConfig[] {
   return Object.values(defaultThemes);
 }
 
-// Loyalty and rewards system
+// Theme loyalty system
 export interface ThemeLoyalty {
   themeName: string;
   startDate: Date;
@@ -304,6 +237,7 @@ export interface ThemeLoyalty {
   stars: number;
 }
 
+// Reward system
 export interface Reward {
   id: string;
   name: string;
@@ -313,84 +247,50 @@ export interface Reward {
   value?: number; // For gift cards
 }
 
-// Base loyalty calculations
-const LOYALTY_MULTIPLIERS = {
-  daily: 1,
-  weekly: 5,
-  monthly: 20,
-  yearly: 100
-};
-
-const STREAK_BONUSES = {
-  7: 1.2,    // 20% bonus for 7-day streak
-  30: 1.5,   // 50% bonus for 30-day streak
-  90: 2,     // 100% bonus for 90-day streak
-  365: 3     // 200% bonus for 1-year streak
-};
-
-// Calculate loyalty points based on activity
+// Calculate loyalty points for an activity
 export function calculateLoyaltyPoints(activity: {
   type: keyof typeof activityTypes;
   xp: number;
   theme: ThemeConfig;
   loyalty: ThemeLoyalty;
 }): number {
-  const basePoints = activity.xp / 10; // 1 point per 10 XP
-  let multiplier = 1;
+  let points = activity.xp * 0.1; // Base points from XP
 
-  // Apply streak bonus
-  for (const [days, bonus] of Object.entries(STREAK_BONUSES)) {
-    if (activity.loyalty.streakDays >= Number(days)) {
-      multiplier = bonus;
-    }
+  // Streak bonus
+  if (activity.loyalty.streakDays >= 7) {
+    points *= 1.5; // 50% bonus for week+ streak
+  } else if (activity.loyalty.streakDays >= 3) {
+    points *= 1.2; // 20% bonus for 3+ day streak
   }
 
-  // Apply theme loyalty bonus
-  const themeLoyaltyBonus = 1 + (activity.loyalty.totalDays / 365) * 0.5; // Up to 50% bonus for year-long loyalty
+  // Theme duration bonus
+  if (activity.loyalty.totalDays >= 30) {
+    points *= 1.3; // 30% bonus for month+ loyalty
+  }
 
-  return Math.round(basePoints * multiplier * themeLoyaltyBonus);
+  return Math.round(points);
 }
 
-// Calculate stars based on loyalty
+// Calculate stars based on loyalty metrics
 export function calculateStars(loyalty: ThemeLoyalty): number {
-  const baseStars = Math.floor(loyalty.totalDays / 30); // 1 star per month
-  const streakBonus = Math.floor(loyalty.streakDays / 90); // Extra star per 90-day streak
-  return baseStars + streakBonus;
-}
+  let stars = 0;
 
-// Available rewards
-export const AVAILABLE_REWARDS: Reward[] = [
-  {
-    id: 'theme-switch',
-    name: 'Theme Switch',
-    description: 'Switch to a new theme while keeping your progress',
-    cost: 1000,
-    type: 'theme'
-  },
-  {
-    id: 'xp-boost',
-    name: 'XP Boost',
-    description: 'Get 50% more XP for 24 hours',
-    cost: 500,
-    type: 'points'
-  },
-  {
-    id: 'gift-card-5',
-    name: '$5 Gift Card',
-    description: 'Redeem for a $5 gift card',
-    cost: 5000,
-    type: 'giftCard',
-    value: 5
-  },
-  {
-    id: 'gift-card-10',
-    name: '$10 Gift Card',
-    description: 'Redeem for a $10 gift card',
-    cost: 9000,
-    type: 'giftCard',
-    value: 10
-  }
-];
+  // Days using theme
+  if (loyalty.totalDays >= 90) stars += 2;
+  else if (loyalty.totalDays >= 30) stars += 1;
+
+  // Streak
+  if (loyalty.streakDays >= 30) stars += 3;
+  else if (loyalty.streakDays >= 14) stars += 2;
+  else if (loyalty.streakDays >= 7) stars += 1;
+
+  // Points
+  if (loyalty.loyaltyPoints >= 10000) stars += 3;
+  else if (loyalty.loyaltyPoints >= 5000) stars += 2;
+  else if (loyalty.loyaltyPoints >= 1000) stars += 1;
+
+  return stars;
+}
 
 // Update loyalty status
 export function updateLoyaltyStatus(
@@ -403,29 +303,30 @@ export function updateLoyaltyStatus(
     (today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  // Reset streak if more than 1 day has passed
-  const streakDays = daysSinceLastActive <= 1 
-    ? currentLoyalty.streakDays + 1 
-    : 1;
-
-  // Calculate total days
-  const startDate = new Date(currentLoyalty.startDate);
-  const totalDays = Math.floor(
-    (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  return {
-    ...currentLoyalty,
-    themeName: newTheme || currentLoyalty.themeName,
-    startDate: newTheme ? today : currentLoyalty.startDate,
-    totalDays: newTheme ? 1 : totalDays,
-    streakDays,
-    lastActiveDate: today,
-    stars: calculateStars({ ...currentLoyalty, totalDays, streakDays })
-  };
+  if (newTheme && newTheme !== currentLoyalty.themeName) {
+    // Switching themes
+    return {
+      themeName: newTheme,
+      startDate: today,
+      totalDays: 1,
+      streakDays: 1,
+      lastActiveDate: today,
+      loyaltyPoints: 0,
+      stars: 0
+    };
+  } else {
+    // Same theme
+    return {
+      ...currentLoyalty,
+      totalDays: currentLoyalty.totalDays + (daysSinceLastActive > 0 ? 1 : 0),
+      streakDays: daysSinceLastActive <= 1 ? currentLoyalty.streakDays + 1 : 1,
+      lastActiveDate: today,
+      stars: calculateStars(currentLoyalty)
+    };
+  }
 }
 
-// Redeem reward
+// Redeem rewards
 export function redeemReward(
   loyalty: ThemeLoyalty,
   reward: Reward
@@ -434,7 +335,7 @@ export function redeemReward(
     return {
       success: false,
       newLoyalty: loyalty,
-      message: 'Not enough loyalty points'
+      message: "Insufficient loyalty points"
     };
   }
 
@@ -443,16 +344,9 @@ export function redeemReward(
     loyaltyPoints: loyalty.loyaltyPoints - reward.cost
   };
 
-  let message = 'Reward redeemed successfully!';
-  if (reward.type === 'theme') {
-    message = 'Theme switch available!';
-  } else if (reward.type === 'giftCard') {
-    message = `$${reward.value} gift card code sent to your email!`;
-  }
-
   return {
     success: true,
     newLoyalty,
-    message
+    message: `Successfully redeemed ${reward.name}`
   };
 } 

@@ -2,17 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
-import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebaseConfig";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth";
+import Link from "next/link";
+import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User } from "lucide-react";
 
 export default function Navbar() {
   const router = useRouter();
-  const [user, setUser] = useState(() => auth.currentUser);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
+  const { user } = useAuth();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -20,53 +17,72 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="flex justify-between items-center px-6 py-4 bg-slate-900 text-white shadow-lg sticky top-0 z-50">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold">Spaced Recall</h1>
+    <nav className="flex justify-between items-center px-6 py-4 bg-slate-800/50 backdrop-blur-sm text-white shadow-lg sticky top-0 z-50">
+      <div className="flex items-center gap-6">
+        <Link href="/dashboard" className="text-xl font-bold hover:text-blue-300 transition">
+          Spaced Recall
+        </Link>
         {user && (
-          <div className="flex space-x-4">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="text-white hover:text-blue-300"
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
             >
-              Dashboard
-            </button>
-            <button
-              onClick={() => router.push("/subjects")}
-              className="text-white hover:text-blue-300"
+              <Home className="h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/subjects"
+              className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
             >
-              Subjects
-            </button>
-            <button
-              onClick={() => router.push("/study-logger")}
-              className="text-white hover:text-blue-300"
+              <BookOpen className="h-4 w-4" />
+              <span>Subjects</span>
+            </Link>
+            <Link
+              href="/study-logger"
+              className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
             >
-              Study Logger
-            </button>
-            <button
-              onClick={() => router.push("/rewards")}
-              className="text-white hover:text-blue-300"
+              <Clock className="h-4 w-4" />
+              <span>Study Logger</span>
+            </Link>
+            <Link
+              href="/rewards"
+              className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
             >
-              Rewards
-            </button>
+              <Gift className="h-4 w-4" />
+              <span>Rewards</span>
+            </Link>
           </div>
         )}
       </div>
-      {user ? (
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition-colors"
-        >
-          🚪 Logout
-        </button>
-      ) : (
-        <button
-          onClick={() => router.push("/login")}
-          className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded transition-colors"
-        >
-          🔐 Login
-        </button>
-      )}
+      <div className="flex items-center gap-4">
+        {user && (
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
+          >
+            <User className="h-4 w-4" />
+            <span>Profile</span>
+          </Link>
+        )}
+        {user ? (
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 bg-red-600/80 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push("/login")}
+            className="flex items-center gap-2 bg-blue-600/80 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Login</span>
+          </button>
+        )}
+      </div>
     </nav>
   );
 }

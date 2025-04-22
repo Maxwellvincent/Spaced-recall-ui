@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { getToken } from 'next-auth/jwt';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
-import { openai } from '@/lib/openai';
+import OpenAI from 'openai';
 
 // Initialize rate limiter: 10 requests per minute
 const ratelimit = new Ratelimit({
@@ -11,11 +12,17 @@ const ratelimit = new Ratelimit({
   analytics: true,
 });
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,    // guaranteed on server
+});
+
 export async function POST(req: Request) {
   try {
-    // Verify authentication
-    const token = await getToken({ req });
-    if (!token) {
+    // Get the session token from the headers
+    const headersList = headers();
+    const session = headersList.get('authorization');
+
+    if (!session) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     // Check rate limit
-    const ip = req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ip = headersList.get('x-forwarded-for') || '127.0.0.1';
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
     if (!success) {

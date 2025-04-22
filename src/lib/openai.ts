@@ -1,62 +1,93 @@
 "use client";
 
-import OpenAI from 'openai';
+import type { AIPrompt, AIResponse } from "@/types/study";
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('Missing OpenAI API key');
-}
+export type StudyPromptResponse = {
+  content: string;
+  error?: string;
+};
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export type EvaluationResponse = {
+  content: string;
+  error?: string;
+};
 
 // Export utility functions for AI-related operations
-export const generateStudyPrompt = async (concept: string, phase: string) => {
+export const generateStudyPrompt = async (concept: string, phase: string): Promise<StudyPromptResponse> => {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful study assistant that creates effective study prompts based on the Feynman technique and active recall principles."
-        },
-        {
-          role: "user",
-          content: `Create a study prompt for the concept "${concept}" in the ${phase} phase of learning.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 150
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: `Create a study prompt for the concept "${concept}" in the ${phase} phase of learning.`,
+        model: "gpt-3.5-turbo",
+        maxTokens: 150
+      }),
     });
 
-    return response.choices[0]?.message?.content || "No response generated";
+    if (!response.ok) {
+      throw new Error('Failed to generate study prompt');
+    }
+
+    const data = await response.json();
+    return {
+      content: data.content || "No response generated"
+    };
   } catch (error) {
     console.error("Error generating study prompt:", error);
-    return "Error generating study prompt";
+    return {
+      content: "Error generating study prompt",
+      error: "Failed to generate study prompt"
+    };
   }
 };
 
-export const evaluateUserAnswer = async (prompt: string, userAnswer: string) => {
+export const evaluateUserAnswer = async (aiPrompt: AIPrompt): Promise<AIResponse> => {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful study assistant that evaluates user answers and provides constructive feedback."
-        },
-        {
-          role: "user",
-          content: `Original prompt: "${prompt}"\nUser's answer: "${userAnswer}"\nPlease evaluate this answer and provide feedback.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 200
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: `
+Topic: ${aiPrompt.topic}
+Subject: ${aiPrompt.subject}
+Question: ${aiPrompt.question}
+User's Answer: ${aiPrompt.userAnswer}
+
+Please evaluate this answer and provide:
+1. Whether the answer is correct (true/false)
+2. Detailed feedback explaining why
+3. A score from 0-100
+
+Return the response in JSON format:
+{
+  "isCorrect": boolean,
+  "aiFeedback": string,
+  "score": number
+}`,
+        model: "gpt-3.5-turbo",
+        maxTokens: 500
+      }),
     });
 
-    return response.choices[0]?.message?.content || "No feedback generated";
+    if (!response.ok) {
+      throw new Error('Failed to evaluate answer');
+    }
+
+    const data = await response.json();
+    const evaluation = JSON.parse(data.content);
+    
+    return {
+      isCorrect: evaluation.isCorrect,
+      aiFeedback: evaluation.aiFeedback,
+      score: evaluation.score
+    };
   } catch (error) {
     console.error("Error evaluating user answer:", error);
-    return "Error evaluating answer";
+    throw new Error("Failed to evaluate answer");
   }
 }; 

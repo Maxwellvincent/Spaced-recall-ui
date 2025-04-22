@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Quidditch Goggles -->
+  <path d="M30 35 L70 35" stroke="#FCD34D" stroke-width="4"/>
+  <circle cx="40" cy="40" r="6" fill="none" stroke="#FCD34D" stroke-width="2"/>
+  <circle cx="60" cy="40" r="6" fill="none" stroke="#FCD34D" stroke-width="2"/>
+  <!-- Face -->
+  <circle cx="50" cy="45" r="20" fill="#FFB6A3"/>
+  <!-- Determined Expression -->
+  <path d="M45 50 L55 50" stroke="#1F2937" stroke-width="2"/>
+  <!-- Quidditch Robes -->
+  <path d="M30 65 L70 65 L65 100 L35 100 Z" fill="#B45309"/>
+  <!-- Broomstick -->
+  <path d="M20 80 L80 80" stroke="#92400E" stroke-width="4"/>
+  <path d="M75 75 L85 85" stroke="#92400E" stroke-width="2"/>
+  <!-- House Colors -->
+  <path d="M35 65 L65 65" stroke="#FCD34D" stroke-width="6"/>
+</svg> 

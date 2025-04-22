@@ -113,6 +113,8 @@ export default function ThemeSelector({ onThemeSelect, currentTheme }: ThemeSele
                 <input
                   key={index}
                   type="text"
+                  id={`interest-${index}`}
+                  name={`interest-${index}`}
                   className="w-full p-2 bg-slate-700 rounded mb-2"
                   value={interest}
                   onChange={(e) => updatePreference('interests', index, e.target.value)}
@@ -133,6 +135,8 @@ export default function ThemeSelector({ onThemeSelect, currentTheme }: ThemeSele
                 <input
                   key={index}
                   type="text"
+                  id={`book-${index}`}
+                  name={`book-${index}`}
                   className="w-full p-2 bg-slate-700 rounded mb-2"
                   value={book}
                   onChange={(e) => updatePreference('favoriteBooks', index, e.target.value)}

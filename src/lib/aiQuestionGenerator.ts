@@ -1,10 +1,6 @@
-import OpenAI from 'openai';
+"use client";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-interface QuestionGenerationParams {
+export interface QuestionGenerationParams {
   subject: string;
   topic: string;
   masteryLevel: 'beginner' | 'intermediate' | 'advanced' | 'master';
@@ -12,7 +8,7 @@ interface QuestionGenerationParams {
   numQuestions: number;
 }
 
-interface GeneratedQuestion {
+export interface GeneratedQuestion {
   question: string;
   type: 'reasoning' | 'mcq' | 'calculation';
   options?: string[];
@@ -51,23 +47,24 @@ export async function generateQuestions({
     
     Return an array of questions in JSON format.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert educational question generator. Generate high-quality questions that test understanding and application of concepts."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model: "gpt-4",
+        maxTokens: 1000
+      }),
     });
 
-    const questions = JSON.parse(response.choices[0].message.content);
-    return questions;
+    if (!response.ok) {
+      throw new Error('Failed to generate questions');
+    }
+
+    const data = await response.json();
+    return JSON.parse(data.content);
   } catch (error) {
     console.error('Error generating questions:', error);
     throw new Error('Failed to generate questions');
@@ -93,23 +90,24 @@ export async function evaluateReasoningAnswer(
     
     Return as JSON: { score: number, feedback: string }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert educational evaluator. Provide detailed, constructive feedback on student answers."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.3,
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        model: "gpt-4",
+        maxTokens: 500
+      }),
     });
 
-    const evaluation = JSON.parse(response.choices[0].message.content);
-    return evaluation;
+    if (!response.ok) {
+      throw new Error('Failed to evaluate answer');
+    }
+
+    const data = await response.json();
+    return JSON.parse(data.content);
   } catch (error) {
     console.error('Error evaluating answer:', error);
     throw new Error('Failed to evaluate answer');

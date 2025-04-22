@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseConfig";
+import { auth, db } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -52,12 +52,16 @@ export default function OnboardingPage() {
       <h1 className="text-2xl font-bold mb-4">🎉 Welcome to Spaced Recall</h1>
       <p className="mb-2">Choose your username and theme to get started:</p>
       <input
+        id="username"
+        name="username"
         className="border p-2 w-full rounded mb-4"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         placeholder="e.g. madballer9898"
       />
       <select
+        id="theme"
+        name="theme"
         className="border p-2 w-full rounded mb-4"
         value={theme}
         onChange={(e) => setTheme(e.target.value)}

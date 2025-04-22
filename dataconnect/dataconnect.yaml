@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "spaced-recall-ui"
+location: "us-central1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb"
+      cloudSql:
+        instanceId: "spaced-recall-ui-fdc"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]
