@@ -124,6 +124,12 @@ module.exports = {
           900: '#0f172a',
         },
       },
+      ringColor: {
+        DEFAULT: 'var(--ring)',
+      },
+      ringOpacity: {
+        50: '0.5',
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -257,12 +263,12 @@ module.exports = {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
+          from: { height: 0 },
           to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
+          to: { height: 0 },
         },
       },
       animation: {

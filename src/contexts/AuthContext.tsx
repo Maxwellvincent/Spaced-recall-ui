@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '@/lib/firebaseConfig';
+import { auth } from '@/lib/firebase';
 import { User } from 'firebase/auth';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
@@ -27,10 +27,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}; 
+export const useAuth = () => useContext(AuthContext); 

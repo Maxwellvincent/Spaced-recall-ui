@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebaseConfig";
+import { auth } from "@/lib/firebase";
 import FirebaseTest from "@/components/FirebaseTest";
 
 export default function DashboardPage() {
