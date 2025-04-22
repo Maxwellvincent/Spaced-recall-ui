@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebaseConfig";
+import { auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export default function LoginPage() {
@@ -52,20 +52,16 @@ export default function LoginPage() {
       />
       <button
         onClick={handleEmailLogin}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full mb-2"
+        className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-4"
       >
-        Login with Email
+        Log In
       </button>
-
-      <div className="text-sm text-gray-400 my-2">or</div>
-
       <button
         onClick={handleGoogleLogin}
-        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded w-full"
+        className="w-full bg-white text-gray-700 p-2 rounded border hover:bg-gray-100"
       >
-        Login with Google
+        Sign in with Google
       </button>
-
       {error && <p className="text-red-500 mt-4">{error}</p>}
     </div>
   );
