@@ -21,7 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^11.6.0",
-    "firebase-admin": "^13.2.0",
+    "firebase-admin": "^11.11.1",
     "google-auth-library": "^9.15.1",
     "googleapis": "^148.0.0",
     "lucide-react": "^0.503.0",
