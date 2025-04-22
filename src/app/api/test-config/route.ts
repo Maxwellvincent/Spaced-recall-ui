@@ -10,8 +10,15 @@ export async function GET() {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   };
 
+  const missingVars = Object.entries(config)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
+
   return NextResponse.json({
     config,
-    message: 'Check if these values match your Firebase config',
+    missingVariables: missingVars,
+    message: missingVars.length > 0 
+      ? `Missing environment variables: ${missingVars.join(', ')}`
+      : 'All Firebase environment variables are present',
   });
 } 
