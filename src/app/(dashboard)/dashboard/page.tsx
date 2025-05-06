@@ -1,3 +1,7 @@
+// Add this configuration object at the beginning of the file to explicitly disable static generation
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 "use client";
 
 import { useEffect, useState } from "react";

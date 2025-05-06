@@ -6,7 +6,8 @@
       "use": "@vercel/next"
     }
   ],
-  "buildCommand": "npm install && npm run build",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {
@@ -18,6 +19,18 @@
     "NEXT_PUBLIC_FIREBASE_APP_ID": "@next_public_firebase_app_id",
     "FIREBASE_PROJECT_ID": "@firebase_project_id",
     "FIREBASE_CLIENT_EMAIL": "@firebase_client_email",
-    "FIREBASE_PRIVATE_KEY": "@firebase_private_key"
+    "FIREBASE_PRIVATE_KEY": "@firebase_private_key",
+    "NEXT_DISABLE_PRERENDER": "true"
+  },
+  "functions": {
+    "src/app/**/*": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "build": {
+    "env": {
+      "NEXT_DISABLE_PRERENDER": "true"
+    }
   }
 } 

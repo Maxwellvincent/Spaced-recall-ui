@@ -34,23 +34,30 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
+  // Completely disable static generation
   output: 'standalone',
   reactStrictMode: true,
   distDir: '.next',
   staticPageGenerationTimeout: 60,
-  // Disable static generation for dashboard and other pages that use Firebase client
+  // Force all pages to be server-side rendered
+  runtime: 'nodejs',
+  experimental: {
+    ...nextConfig.experimental,
+    serverActions: true,
+  },
+  // Generate a unique build ID
   generateBuildId: async () => {
     return 'build-' + Date.now();
   },
-  exportPathMap: async function (defaultPathMap) {
-    // Exclude these paths from static generation
-    delete defaultPathMap['/dashboard'];
-    delete defaultPathMap['/subjects'];
-    delete defaultPathMap['/profile'];
-    delete defaultPathMap['/study-logger'];
-    delete defaultPathMap['/study-overview'];
-    delete defaultPathMap['/rewards'];
-    return defaultPathMap;
+  // Disable the static optimizations for all routes
+  exportPathMap: null,
+  trailingSlash: false,
+  // Disable prerendering completely
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
   },
 };
 

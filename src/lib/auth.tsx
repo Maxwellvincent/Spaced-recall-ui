@@ -1,12 +1,12 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from './firebase';
-import { useEffect } from 'react';
+import { getFirebaseAuth, getFirebaseDb } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import type { User } from 'firebase/auth';
 
 interface CalendarEvent {
   title: string;
@@ -16,7 +16,7 @@ interface CalendarEvent {
 }
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   loading: boolean;
   initiateCalendarAdd: (eventDetails: CalendarEvent) => Promise<void>;
   initiateCalendarSync: () => Promise<void>;
@@ -25,8 +25,42 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, loading] = useAuthState(auth);
+  const [authInitialized, setAuthInitialized] = useState(false);
+  const [authInstance, setAuthInstance] = useState<ReturnType<typeof getFirebaseAuth> | null>(null);
+  const [userState, setUserState] = useState<User | null>(null);
+  const [loadingState, setLoadingState] = useState(true);
   const router = useRouter();
+  
+  // Initialize Firebase Auth only in the browser
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const auth = getFirebaseAuth();
+        setAuthInstance(auth);
+        setAuthInitialized(true);
+      } catch (error) {
+        console.error("Error initializing Firebase Auth:", error);
+      }
+    }
+  }, []);
+  
+  // Set up auth state listener once auth is initialized
+  useEffect(() => {
+    if (!authInitialized || !authInstance) return;
+    
+    const unsubscribe = authInstance.onAuthStateChanged(
+      (user) => {
+        setUserState(user);
+        setLoadingState(false);
+      },
+      (error) => {
+        console.error("Auth state change error:", error);
+        setLoadingState(false);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [authInitialized, authInstance]);
 
   const initiateCalendarAdd = async (eventDetails: CalendarEvent) => {
     // Set cookie with event details (expires in 5 minutes)
@@ -41,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!user || loading) return;
+    if (!userState || loadingState || typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
     const pendingAdd = params.get('pendingAdd');
@@ -73,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.success('Event added to calendar successfully');
         
         // Update user's calendar sync status in Firestore
-        const userRef = doc(db, 'users', user.uid);
+        const db = getFirebaseDb();
+        const userRef = doc(db, 'users', userState.uid);
         await updateDoc(userRef, {
           calendarSynced: true,
           lastCalendarSync: new Date().toISOString(),
@@ -87,7 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleCalendarSync = async () => {
       try {
         // Update user's calendar sync status
-        const userRef = doc(db, 'users', user.uid);
+        const db = getFirebaseDb();
+        const userRef = doc(db, 'users', userState.uid);
         await updateDoc(userRef, {
           calendarSynced: true,
           lastCalendarSync: new Date().toISOString(),
@@ -111,11 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clean up pendingSync from URL
       router.replace(window.location.pathname);
     }
-  }, [user, loading, router]);
+  }, [userState, loadingState, router]);
 
   const value = {
-    user,
-    loading,
+    user: userState,
+    loading: loadingState,
     initiateCalendarAdd,
     initiateCalendarSync,
   };
