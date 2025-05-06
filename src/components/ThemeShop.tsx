@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -197,5 +199,4 @@ export function ThemeShop() {
       </div>
     </div>
   );
-} 
 } 

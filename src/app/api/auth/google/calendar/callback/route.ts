@@ -4,7 +4,10 @@ import { cookies } from 'next/headers';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { initAdmin } from '@/lib/firebase-admin';
+import { initializeFirebaseAdmin as initAdmin } from '@/lib/firebase-admin';
+
+// Mark route as dynamic to prevent static generation errors
+export const dynamic = 'force-dynamic';
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,

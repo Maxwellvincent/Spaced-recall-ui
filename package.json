@@ -15,7 +15,9 @@
     "clean-deploy": "node clean-deploy.js"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@next-auth/firebase-adapter": "^2.0.1",
+    "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-checkbox": "^1.2.3",
     "@radix-ui/react-dialog": "^1.1.10",
     "@radix-ui/react-dropdown-menu": "^2.1.11",

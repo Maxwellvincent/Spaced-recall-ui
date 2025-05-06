@@ -48,6 +48,40 @@ export async function generateCustomTheme(
   }
 }
 
+// Available rewards for the loyalty system
+export const AVAILABLE_REWARDS: Reward[] = [
+  {
+    id: 'theme_discount',
+    name: 'Theme Discount',
+    description: '50% off your next theme purchase',
+    cost: 500,
+    type: 'theme'
+  },
+  {
+    id: 'xp_boost',
+    name: 'XP Boost',
+    description: '2x XP for your next 5 study sessions',
+    cost: 300,
+    type: 'points'
+  },
+  {
+    id: 'gift_card_5',
+    name: '$5 Gift Card',
+    description: '$5 gift card for the app store of your choice',
+    cost: 1000,
+    type: 'giftCard',
+    value: 5
+  },
+  {
+    id: 'gift_card_10',
+    name: '$10 Gift Card',
+    description: '$10 gift card for the app store of your choice',
+    cost: 2000,
+    type: 'giftCard',
+    value: 10
+  }
+];
+
 // Base XP thresholds that can be modified by theme
 export const baseXPThresholds = [
   0, 50, 100, 150, 200,     // Level 1–5
@@ -324,6 +358,73 @@ export function updateLoyaltyStatus(
       stars: calculateStars(currentLoyalty)
   };
   }
+}
+
+// Calculate XP for study sessions, quizzes, etc.
+export function calculateXP({
+  type,
+  duration,
+  difficulty,
+  performance = 100,
+  timeTaken = 0,
+  masteryLevel = 'beginner'
+}: {
+  type: 'study' | 'quiz' | 'practice' | 'review';
+  duration: number;
+  difficulty: number;
+  performance?: number;
+  timeTaken?: number;
+  masteryLevel?: 'beginner' | 'intermediate' | 'advanced' | 'master';
+}): number {
+  // Base XP based on activity type
+  let baseXP = 0;
+  switch (type) {
+    case 'study':
+      baseXP = 20;
+      break;
+    case 'quiz':
+      baseXP = 30;
+      break;
+    case 'practice':
+      baseXP = 25;
+      break;
+    case 'review':
+      baseXP = 15;
+      break;
+  }
+  
+  // Difficulty multiplier (1-10 scale)
+  const difficultyMultiplier = 0.8 + (difficulty / 10);
+  
+  // Duration multiplier (minutes)
+  const durationMultiplier = Math.sqrt(duration / 15);
+  
+  // Performance multiplier (0-100%)
+  const performanceMultiplier = 0.5 + (performance / 200);
+  
+  // Mastery level multiplier
+  let masteryMultiplier = 1.0;
+  switch (masteryLevel) {
+    case 'beginner':
+      masteryMultiplier = 1.0;
+      break;
+    case 'intermediate':
+      masteryMultiplier = 0.9;
+      break;
+    case 'advanced':
+      masteryMultiplier = 0.8;
+      break;
+    case 'master':
+      masteryMultiplier = 0.7;
+      break;
+  }
+  
+  // Calculate final XP
+  const xp = Math.round(
+    baseXP * difficultyMultiplier * durationMultiplier * performanceMultiplier * masteryMultiplier
+  );
+  
+  return xp;
 }
 
 // Redeem rewards
