@@ -14,7 +14,6 @@ log('Starting Vercel deployment build script');
 process.env.NEXT_DISABLE_PRERENDER = 'true';
 process.env.NEXT_SKIP_INITIAL_SETUP = '1';
 process.env.NODE_ENV = 'production';
-process.env.NEXT_PUBLIC_BUILD_ENV = 'vercel';
 
 // Set placeholder values for Firebase environment variables if they don't exist
 // This prevents the build from failing due to missing environment variables
@@ -55,7 +54,6 @@ FIREBASE_CLIENT_EMAIL=${process.env.FIREBASE_CLIENT_EMAIL || 'placeholder-client
 FIREBASE_PRIVATE_KEY="${process.env.FIREBASE_PRIVATE_KEY || '-----BEGIN PRIVATE KEY-----\\nplaceholder\\n-----END PRIVATE KEY-----\\n'}"
 NEXT_DISABLE_PRERENDER=true
 NEXT_SKIP_INITIAL_SETUP=1
-NEXT_PUBLIC_BUILD_ENV=vercel
   `.trim();
   
   fs.writeFileSync(envPath, envContent);
@@ -98,7 +96,6 @@ const nextConfig = {
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'placeholder-app-id',
     NEXT_DISABLE_PRERENDER: '1',
     NEXT_SKIP_INITIAL_SETUP: '1',
-    NEXT_PUBLIC_BUILD_ENV: 'vercel',
   },
   // Force all pages to be server-side rendered
   reactStrictMode: true,
@@ -119,7 +116,6 @@ module.exports = nextConfig;
       ...process.env,
       NEXT_DISABLE_PRERENDER: '1',
       NEXT_SKIP_INITIAL_SETUP: '1',
-      NEXT_PUBLIC_BUILD_ENV: 'vercel',
       NODE_OPTIONS: '--max_old_space_size=4096'
     }
   });

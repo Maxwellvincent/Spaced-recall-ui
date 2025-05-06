@@ -13,11 +13,13 @@ let _db: Firestore | null = null;
 // Determine if we're in the browser or server
 const isServer = typeof window === 'undefined';
 const isBuildTime = process.env.NODE_ENV === 'production' && isServer;
-const isVercelBuild = process.env.NEXT_PUBLIC_BUILD_ENV === 'vercel';
 
-// If we're in a Vercel build, log this for debugging
-if (isVercelBuild) {
-  console.log('Running in Vercel build environment - Firebase will be disabled');
+// We only want to disable Firebase during build time, not during runtime in production
+const shouldDisableFirebase = isBuildTime;
+
+// If we're in a build, log this for debugging
+if (shouldDisableFirebase) {
+  console.log('Running in build environment - Firebase will be disabled during build only');
 }
 
 // Mock objects for SSR to prevent errors
@@ -54,13 +56,13 @@ const mockAuth = {
   signOut: () => Promise.resolve(),
 };
 
-// Only initialize Firebase in browser environment and not during Vercel build
+// Only initialize Firebase in browser environment and not during build
 const initFirebase = async () => {
   // Skip initialization if we're not in a browser, if Firebase is already initialized,
-  // or if we're in a Vercel build
-  if (isServer || app !== null || isVercelBuild) {
-    if (isVercelBuild) {
-      console.log('Skipping Firebase initialization in Vercel build');
+  // or if we're in a build
+  if (isServer || app !== null || shouldDisableFirebase) {
+    if (shouldDisableFirebase) {
+      console.log('Skipping Firebase initialization during build');
     }
     return;
   }
@@ -91,8 +93,8 @@ const initFirebase = async () => {
 
 // Safely get Firebase Auth instance
 export function getFirebaseAuth(): Auth {
-  if (isServer || isVercelBuild) {
-    console.log("Returning mock auth for server environment or Vercel build");
+  if (isServer) {
+    console.log("Returning mock auth for server environment");
     return mockAuth as unknown as Auth;
   }
   
@@ -100,7 +102,7 @@ export function getFirebaseAuth(): Auth {
   if (!_auth) {
     // We need to initialize Firebase synchronously here
     // This is a fallback for when getFirebaseAuth is called before initialization completes
-    if (typeof window !== 'undefined' && app === null && !isVercelBuild) {
+    if (typeof window !== 'undefined' && app === null && !shouldDisableFirebase) {
       initFirebase().catch(console.error);
     }
     console.warn("Auth was accessed before initialization!");
@@ -112,15 +114,15 @@ export function getFirebaseAuth(): Auth {
 
 // Safely get Firebase Firestore instance
 export function getFirebaseDb(): Firestore {
-  if (isServer || isVercelBuild) {
-    console.log("Returning mock firestore for server environment or Vercel build");
+  if (isServer) {
+    console.log("Returning mock firestore for server environment");
     return mockFirestore as unknown as Firestore;
   }
   
   // Initialize Firebase if it hasn't been initialized yet
   if (!_db) {
     // We need to initialize Firebase synchronously here
-    if (typeof window !== 'undefined' && app === null && !isVercelBuild) {
+    if (typeof window !== 'undefined' && app === null && !shouldDisableFirebase) {
       initFirebase().catch(console.error);
     }
     console.warn("Firestore was accessed before initialization!");
@@ -131,15 +133,15 @@ export function getFirebaseDb(): Firestore {
 }
 
 // For backward compatibility, export objects that are safe in SSR
-export const auth = isServer || isVercelBuild
+export const auth = isServer
   ? (mockAuth as unknown as Auth) 
   : (_auth || mockAuth as unknown as Auth);
 
-export const db = isServer || isVercelBuild
+export const db = isServer
   ? (mockFirestore as unknown as Firestore) 
   : (_db || mockFirestore as unknown as Firestore);
 
-// Initialize Firebase immediately in the browser (but not during Vercel build)
-if (typeof window !== 'undefined' && !isVercelBuild) {
+// Initialize Firebase immediately in the browser (but not during build)
+if (typeof window !== 'undefined' && !shouldDisableFirebase) {
   initFirebase().catch(console.error);
 }
