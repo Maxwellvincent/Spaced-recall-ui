@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 next build",
-    "build-vercel": "node deploy.js",
+    "build": "node deploy.js",
+    "build-original": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 next build",
     "start": "next start",
     "lint": "next lint",
     "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts"
