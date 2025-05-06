@@ -25,9 +25,11 @@ const nextConfig = {
   },
   images: {
     domains: ['firebasestorage.googleapis.com'],
+    minimumCacheTTL: 60,
   },
   experimental: {
     optimizeCss: true,
+    serverComponentsExternalPackages: ['firebase-admin'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -36,11 +38,19 @@ const nextConfig = {
   reactStrictMode: true,
   distDir: '.next',
   staticPageGenerationTimeout: 60,
-  images: {
-    minimumCacheTTL: 60,
+  // Disable static generation for dashboard and other pages that use Firebase client
+  generateBuildId: async () => {
+    return 'build-' + Date.now();
   },
-  experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
+  exportPathMap: async function (defaultPathMap) {
+    // Exclude these paths from static generation
+    delete defaultPathMap['/dashboard'];
+    delete defaultPathMap['/subjects'];
+    delete defaultPathMap['/profile'];
+    delete defaultPathMap['/study-logger'];
+    delete defaultPathMap['/study-overview'];
+    delete defaultPathMap['/rewards'];
+    return defaultPathMap;
   },
 };
 

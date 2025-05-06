@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import Link from "next/link";
 import type { Subject, Topic } from "@/types/study";
@@ -84,6 +84,8 @@ export default function DashboardPage() {
       setIsLoading(true);
 
       try {
+        // Get the Firestore instance only on the client side
+        const db = getFirebaseDb();
         const subjectsRef = collection(db, "subjects");
         const q = query(subjectsRef, where("userId", "==", user.uid));
         const querySnapshot = await getDocs(q);
@@ -152,7 +154,10 @@ export default function DashboardPage() {
       }
     };
 
-    fetchUserData();
+    // Only run this effect in the browser
+    if (typeof window !== 'undefined') {
+      fetchUserData();
+    }
   }, [user]);
 
   useEffect(() => {
