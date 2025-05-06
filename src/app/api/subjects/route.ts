@@ -1,12 +1,48 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs";
-import { db } from "@/lib/firebase";
+import { initializeFirebaseAdmin } from "@/lib/firebaseAdmin";
 import { SubjectStructure } from "@/types/subject";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { cookies, headers } from "next/headers";
 
 export async function POST(request: Request) {
   try {
-    const { userId } = auth();
+    // Get the authorization header
+    const headersList = headers();
+    const authHeader = headersList.get("authorization");
+    let userId = null;
+
+    // Check for auth token
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const idToken = authHeader.split("Bearer ")[1];
+      try {
+        // Verify the Firebase token
+        const auth = getAuth();
+        const decodedToken = await auth.verifyIdToken(idToken);
+        userId = decodedToken.uid;
+      } catch (error) {
+        console.error("Error verifying token:", error);
+        return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
+      }
+    } 
+    
+    // If no auth header, try to get from cookies (for session-based auth)
+    if (!userId) {
+      const cookieStore = cookies();
+      const sessionCookie = cookieStore.get("session");
+      
+      if (sessionCookie) {
+        try {
+          const auth = getAuth();
+          const decodedCookie = await auth.verifySessionCookie(sessionCookie.value);
+          userId = decodedCookie.uid;
+        } catch (error) {
+          console.error("Error verifying session cookie:", error);
+        }
+      }
+    }
+
+    // If we still don't have a user ID, return unauthorized
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -68,8 +104,8 @@ export async function POST(request: Request) {
       ...data,
       userId,
       totalEstimatedHours,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       progress: {
         totalXP: 0,
         averageMastery: 0,
@@ -78,8 +114,9 @@ export async function POST(request: Request) {
       },
     };
 
-    // Save to Firestore
-    const docRef = await addDoc(collection(db, "subjects"), subjectDoc);
+    // Save to Firestore (admin)
+    const db = initializeFirebaseAdmin();
+    const docRef = await db.collection("subjects").add(subjectDoc);
 
     return NextResponse.json({ id: docRef.id });
   } catch (error) {

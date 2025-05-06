@@ -21,7 +21,9 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  ChartData,
+  ChartDataset
 } from 'chart.js';
 import { ThemeCharacter } from '@/components/ThemeCharacter';
 import { getThemeConfig, getCurrentLevel, getNextLevel } from '@/utils/themeUtils';
@@ -54,7 +56,10 @@ export default function DashboardPage() {
   }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [chartData, setChartData] = useState({
+  const [chartData, setChartData] = useState<{
+    activityData: ChartData<'line'>;
+    masteryData: ChartData<'doughnut'>;
+  }>({
     activityData: {
       labels: [],
       datasets: []
@@ -183,7 +188,7 @@ export default function DashboardPage() {
       activityData: {
         labels: last7Days.map(date => new Date(date).toLocaleDateString('en-US', { weekday: 'short' })),
         datasets: [{
-          label: 'Daily Activity',
+          label: 'Daily Activity', 
           data: activityByDay,
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.5)',
@@ -196,7 +201,7 @@ export default function DashboardPage() {
           data: masteryDistribution,
           backgroundColor: [
             'rgba(239, 68, 68, 0.5)',
-            'rgba(249, 115, 22, 0.5)',
+            'rgba(249, 115, 22, 0.5)', 
             'rgba(234, 179, 8, 0.5)',
             'rgba(34, 197, 94, 0.5)',
             'rgba(59, 130, 246, 0.5)'
@@ -204,7 +209,7 @@ export default function DashboardPage() {
           borderColor: [
             'rgb(239, 68, 68)',
             'rgb(249, 115, 22)',
-            'rgb(234, 179, 8)',
+            'rgb(234, 179, 8)', 
             'rgb(34, 197, 94)',
             'rgb(59, 130, 246)'
           ],
@@ -243,8 +248,12 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const currentLevel = getCurrentLevel(userTheme, userXP);
-  const { nextLevel, progress } = getNextLevel(userTheme, userXP);
+  // Get the theme information using the utility functions
+  const currentLevelString = getCurrentLevel(userTheme, userXP);
+  const { name: nextLevelName, progress } = getNextLevel(userTheme, userXP);
+  
+  // We need to convert the string level to a number for the ThemeCharacter component
+  const currentLevelNumber = parseInt(currentLevelString.split(' ').pop() || '0', 10);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -292,21 +301,21 @@ export default function DashboardPage() {
           <div className="col-span-1 bg-slate-800 p-6 rounded-lg shadow-lg">
             <ThemeCharacter
               theme={userTheme}
-              level={currentLevel}
+              level={currentLevelNumber}
               xp={userXP}
               isLevelUp={progress >= 100}
             />
             <div className="mt-4 w-full">
               <div className="flex justify-between text-sm text-gray-400">
-                <span>Level {currentLevel}</span>
-                <span>Level {nextLevel}</span>
+                <span>{currentLevelString}</span>
+                <span>{nextLevelName}</span>
               </div>
               <div className="w-full h-2 bg-gray-700 rounded-full mt-1">
                 <div
                   className="h-full rounded-full transition-all duration-300"
                   style={{
                     width: `${progress}%`,
-                    backgroundColor: getThemeConfig(userTheme).levels[currentLevel]?.color
+                    backgroundColor: "#60A5FA" // Use a default blue color
                   }}
                 />
               </div>
