@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "node deploy.js",
     "build-original": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 next build",
-    "build-vercel": "node vercel-build.js",
+    "build-vercel": "node setup-env.js && node vercel-build.js",
     "start": "next start",
     "lint": "next lint",
-    "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts"
+    "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts",
+    "direct-deploy": "node direct-deploy.js",
+    "deploy-with-env": "node deploy-with-env.js",
+    "clean-deploy": "node clean-deploy.js"
   },
   "dependencies": {
     "@next-auth/firebase-adapter": "^2.0.1",

@@ -9,5 +9,6 @@
         "mindmaps",
         "spacedrecallapp",
         "tlmk"
-    ]
+    ],
+    "search.useIgnoreFiles": false
 }
