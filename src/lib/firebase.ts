@@ -13,6 +13,12 @@ let _db: Firestore | null = null;
 // Determine if we're in the browser or server
 const isServer = typeof window === 'undefined';
 const isBuildTime = process.env.NODE_ENV === 'production' && isServer;
+const isVercelBuild = process.env.NEXT_PUBLIC_BUILD_ENV === 'vercel';
+
+// If we're in a Vercel build, log this for debugging
+if (isVercelBuild) {
+  console.log('Running in Vercel build environment - Firebase will be disabled');
+}
 
 // Mock objects for SSR to prevent errors
 // These provide the minimal structure to prevent errors but don't actually do anything
@@ -48,10 +54,16 @@ const mockAuth = {
   signOut: () => Promise.resolve(),
 };
 
-// Only initialize Firebase in browser environment
+// Only initialize Firebase in browser environment and not during Vercel build
 const initFirebase = async () => {
-  // Skip initialization if we're not in a browser or if Firebase is already initialized
-  if (isServer || app !== null) return;
+  // Skip initialization if we're not in a browser, if Firebase is already initialized,
+  // or if we're in a Vercel build
+  if (isServer || app !== null || isVercelBuild) {
+    if (isVercelBuild) {
+      console.log('Skipping Firebase initialization in Vercel build');
+    }
+    return;
+  }
   
   try {
     const { initializeApp, getApps } = await import("firebase/app");
@@ -79,8 +91,8 @@ const initFirebase = async () => {
 
 // Safely get Firebase Auth instance
 export function getFirebaseAuth(): Auth {
-  if (isServer) {
-    console.log("Returning mock auth for server environment");
+  if (isServer || isVercelBuild) {
+    console.log("Returning mock auth for server environment or Vercel build");
     return mockAuth as unknown as Auth;
   }
   
@@ -88,7 +100,7 @@ export function getFirebaseAuth(): Auth {
   if (!_auth) {
     // We need to initialize Firebase synchronously here
     // This is a fallback for when getFirebaseAuth is called before initialization completes
-    if (typeof window !== 'undefined' && app === null) {
+    if (typeof window !== 'undefined' && app === null && !isVercelBuild) {
       initFirebase().catch(console.error);
     }
     console.warn("Auth was accessed before initialization!");
@@ -100,15 +112,15 @@ export function getFirebaseAuth(): Auth {
 
 // Safely get Firebase Firestore instance
 export function getFirebaseDb(): Firestore {
-  if (isServer) {
-    console.log("Returning mock firestore for server environment");
+  if (isServer || isVercelBuild) {
+    console.log("Returning mock firestore for server environment or Vercel build");
     return mockFirestore as unknown as Firestore;
   }
   
   // Initialize Firebase if it hasn't been initialized yet
   if (!_db) {
     // We need to initialize Firebase synchronously here
-    if (typeof window !== 'undefined' && app === null) {
+    if (typeof window !== 'undefined' && app === null && !isVercelBuild) {
       initFirebase().catch(console.error);
     }
     console.warn("Firestore was accessed before initialization!");
@@ -119,15 +131,15 @@ export function getFirebaseDb(): Firestore {
 }
 
 // For backward compatibility, export objects that are safe in SSR
-export const auth = isServer 
+export const auth = isServer || isVercelBuild
   ? (mockAuth as unknown as Auth) 
   : (_auth || mockAuth as unknown as Auth);
 
-export const db = isServer 
+export const db = isServer || isVercelBuild
   ? (mockFirestore as unknown as Firestore) 
   : (_db || mockFirestore as unknown as Firestore);
 
-// Initialize Firebase immediately in the browser
-if (typeof window !== 'undefined') {
+// Initialize Firebase immediately in the browser (but not during Vercel build)
+if (typeof window !== 'undefined' && !isVercelBuild) {
   initFirebase().catch(console.error);
 }

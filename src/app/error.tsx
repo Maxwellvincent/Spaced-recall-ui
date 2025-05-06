@@ -15,16 +15,13 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white">
-      <div className="text-center px-4">
-        <h1 className="text-6xl font-bold text-red-500 mb-4">Error</h1>
-        <h2 className="text-2xl font-semibold mb-6">Something went wrong</h2>
-        <p className="text-slate-400 mb-8 max-w-md mx-auto">
-          An unexpected error occurred. Please try again.
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="text-center p-8 max-w-md">
+        <h1 className="text-4xl font-bold mb-4">Something went wrong</h1>
+        <p className="mb-6">We encountered an error while loading this page.</p>
         <button
-          onClick={() => reset()}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          onClick={reset}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
         >
           Try again
         </button>

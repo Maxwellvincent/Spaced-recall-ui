@@ -1,10 +1,13 @@
-// Add this configuration object at the beginning of the file to explicitly disable static generation
+// Force dynamic rendering and disable static generation
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+export const runtime = 'nodejs';
+export const preferredRegion = 'auto';
 
-// This is a minimal static version of the dashboard page
-// It doesn't use Firebase during build time
-// The real dashboard functionality will load client-side
+// This is a completely static version of the dashboard page
+// It doesn't use any client components or Firebase during build time
+// The real dashboard functionality will load client-side through the layout.tsx file
 
 export default function DashboardPage() {
   return (

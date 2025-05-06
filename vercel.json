@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
   "buildCommand": "npm run build-vercel",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
@@ -20,18 +14,19 @@
     "FIREBASE_PROJECT_ID": "@firebase_project_id",
     "FIREBASE_CLIENT_EMAIL": "@firebase_client_email",
     "FIREBASE_PRIVATE_KEY": "@firebase_private_key",
-    "NEXT_DISABLE_PRERENDER": "true"
-  },
-  "functions": {
-    "src/app/**/*": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
+    "NEXT_DISABLE_PRERENDER": "true",
+    "NEXT_PUBLIC_BUILD_ENV": "vercel"
   },
   "build": {
     "env": {
       "NEXT_DISABLE_PRERENDER": "true",
-      "NEXT_SKIP_INITIAL_SETUP": "1"
+      "NEXT_SKIP_INITIAL_SETUP": "1",
+      "NEXT_PUBLIC_BUILD_ENV": "vercel"
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "main": true
     }
   }
 } 
