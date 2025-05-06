@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 next build",
+    "build-vercel": "node deploy.js",
     "start": "next start",
     "lint": "next lint",
     "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts"
@@ -26,6 +27,7 @@
     "chart.js": "^4.4.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cross-env": "^7.0.3",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "firebase": "^11.6.0",

@@ -6,7 +6,7 @@
       "use": "@vercel/next"
     }
   ],
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build-vercel",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
@@ -30,7 +30,8 @@
   },
   "build": {
     "env": {
-      "NEXT_DISABLE_PRERENDER": "true"
+      "NEXT_DISABLE_PRERENDER": "true",
+      "NEXT_SKIP_INITIAL_SETUP": "1"
     }
   }
 } 
