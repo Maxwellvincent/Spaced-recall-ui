@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "node deploy.js",
     "build-original": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 next build",
+    "build-vercel": "cross-env NEXT_DISABLE_PRERENDER=1 NEXT_SKIP_INITIAL_SETUP=1 NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "next start",
     "lint": "next lint",
     "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts"

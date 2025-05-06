@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
 import { getFirebaseAuth, getFirebaseDb } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -26,41 +25,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authInitialized, setAuthInitialized] = useState(false);
-  const [authInstance, setAuthInstance] = useState<ReturnType<typeof getFirebaseAuth> | null>(null);
   const [userState, setUserState] = useState<User | null>(null);
   const [loadingState, setLoadingState] = useState(true);
   const router = useRouter();
   
   // Initialize Firebase Auth only in the browser
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const auth = getFirebaseAuth();
-        setAuthInstance(auth);
-        setAuthInitialized(true);
-      } catch (error) {
-        console.error("Error initializing Firebase Auth:", error);
-      }
+    // Skip if not in browser
+    if (typeof window === 'undefined') {
+      setLoadingState(false);
+      return;
+    }
+    
+    try {
+      const auth = getFirebaseAuth();
+      
+      const unsubscribe = auth.onAuthStateChanged(
+        (user) => {
+          setUserState(user);
+          setLoadingState(false);
+          setAuthInitialized(true);
+        },
+        (error) => {
+          console.error("Auth state change error:", error);
+          setLoadingState(false);
+          setAuthInitialized(true);
+        }
+      );
+      
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error initializing Firebase Auth:", error);
+      setLoadingState(false);
     }
   }, []);
-  
-  // Set up auth state listener once auth is initialized
-  useEffect(() => {
-    if (!authInitialized || !authInstance) return;
-    
-    const unsubscribe = authInstance.onAuthStateChanged(
-      (user) => {
-        setUserState(user);
-        setLoadingState(false);
-      },
-      (error) => {
-        console.error("Auth state change error:", error);
-        setLoadingState(false);
-      }
-    );
-    
-    return () => unsubscribe();
-  }, [authInitialized, authInstance]);
 
   const initiateCalendarAdd = async (eventDetails: CalendarEvent) => {
     // Set cookie with event details (expires in 5 minutes)

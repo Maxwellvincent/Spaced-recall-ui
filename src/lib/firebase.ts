@@ -48,45 +48,49 @@ const mockAuth = {
   signOut: () => Promise.resolve(),
 };
 
-// Only initialize Firebase in browser environment and not during build
-if (!isServer) {
-  const initFirebase = async () => {
-    try {
-      const { initializeApp, getApps } = await import("firebase/app");
-      const { getFirestore } = await import("firebase/firestore");
-      const { getAuth } = await import("firebase/auth");
+// Only initialize Firebase in browser environment
+const initFirebase = async () => {
+  // Skip initialization if we're not in a browser or if Firebase is already initialized
+  if (isServer || app !== null) return;
+  
+  try {
+    const { initializeApp, getApps } = await import("firebase/app");
+    const { getFirestore } = await import("firebase/firestore");
+    const { getAuth } = await import("firebase/auth");
 
-      const firebaseConfig = {
-        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-      };
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
 
-      // Initialize Firebase if it hasn't been initialized yet
-      app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-      _auth = getAuth(app);
-      _db = getFirestore(app);
-      console.log("Firebase initialized in browser");
-    } catch (err) {
-      console.error("Error initializing Firebase:", err);
-    }
-  };
+    // Initialize Firebase if it hasn't been initialized yet
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+    _auth = getAuth(app);
+    _db = getFirestore(app);
+    console.log("Firebase initialized in browser");
+  } catch (err) {
+    console.error("Error initializing Firebase:", err);
+  }
+};
 
-  // Initialize Firebase immediately in the browser
-  initFirebase().catch(console.error);
-}
-
-// Safe getters that work in both environments
+// Safely get Firebase Auth instance
 export function getFirebaseAuth(): Auth {
   if (isServer) {
     console.log("Returning mock auth for server environment");
     return mockAuth as unknown as Auth;
   }
   
+  // Initialize Firebase if it hasn't been initialized yet
   if (!_auth) {
+    // We need to initialize Firebase synchronously here
+    // This is a fallback for when getFirebaseAuth is called before initialization completes
+    if (typeof window !== 'undefined' && app === null) {
+      initFirebase().catch(console.error);
+    }
     console.warn("Auth was accessed before initialization!");
     return mockAuth as unknown as Auth;
   }
@@ -94,13 +98,19 @@ export function getFirebaseAuth(): Auth {
   return _auth;
 }
 
+// Safely get Firebase Firestore instance
 export function getFirebaseDb(): Firestore {
   if (isServer) {
     console.log("Returning mock firestore for server environment");
     return mockFirestore as unknown as Firestore;
   }
   
+  // Initialize Firebase if it hasn't been initialized yet
   if (!_db) {
+    // We need to initialize Firebase synchronously here
+    if (typeof window !== 'undefined' && app === null) {
+      initFirebase().catch(console.error);
+    }
     console.warn("Firestore was accessed before initialization!");
     return mockFirestore as unknown as Firestore;
   }
@@ -108,7 +118,7 @@ export function getFirebaseDb(): Firestore {
   return _db;
 }
 
-// For backward compatibility, export the same objects but ensure they're safe in SSR
+// For backward compatibility, export objects that are safe in SSR
 export const auth = isServer 
   ? (mockAuth as unknown as Auth) 
   : (_auth || mockAuth as unknown as Auth);
@@ -116,3 +126,8 @@ export const auth = isServer
 export const db = isServer 
   ? (mockFirestore as unknown as Firestore) 
   : (_db || mockFirestore as unknown as Firestore);
+
+// Initialize Firebase immediately in the browser
+if (typeof window !== 'undefined') {
+  initFirebase().catch(console.error);
+}

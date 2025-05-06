@@ -17,6 +17,9 @@ const nextConfig = {
     serverComponentsExternalPackages: ['firebase-admin'],
   },
   
+  // Set a timeout for static page generation
+  staticPageGenerationTimeout: 120,
+  
   // Webpack configuration to handle client-side fallbacks
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -39,7 +42,13 @@ const nextConfig = {
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    NEXT_DISABLE_PRERENDER: '1',
+    NEXT_SKIP_INITIAL_SETUP: '1',
   },
+  
+  // Force all pages to be server-side rendered
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 module.exports = nextConfig; 
