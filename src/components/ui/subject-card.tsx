@@ -2,10 +2,13 @@ import Link from "next/link";
 import { BookOpen, Star, Brain, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from '@/lib/firebase';
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 const THEME_LEVELS = {
   "naruto": {

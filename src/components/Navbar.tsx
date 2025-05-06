@@ -5,7 +5,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth";
 import Link from "next/link";
-import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User } from "lucide-react";
+import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain } from "lucide-react";
 
 export default function Navbar() {
   const router = useRouter();
@@ -44,6 +44,13 @@ export default function Navbar() {
             >
               <Clock className="h-4 w-4" />
               <span>Study Logger</span>
+            </Link>
+            <Link
+              href="/spaced-recall"
+              className="flex items-center gap-2 text-slate-200 hover:text-blue-300 transition"
+            >
+              <Brain className="h-4 w-4" />
+              <span>Spaced Recall</span>
             </Link>
             <Link
               href="/rewards"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import {
   Chart as ChartJS,
@@ -80,7 +80,7 @@ export default function ProgressVisualization({
     if (!user) return;
 
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(getFirebaseDb(), 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         const topicData = userData.subjects?.[subject]?.[topic] || {};

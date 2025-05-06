@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { calculateXP } from '@/lib/xpSystem';
 import { generateQuestions, evaluateReasoningAnswer } from '@/lib/aiQuestionGenerator';
 import ProgressVisualization from './ProgressVisualization';
 import { generateStudyPrompt, evaluateUserAnswer } from '@/lib/openai';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 interface Question {
   id: string;

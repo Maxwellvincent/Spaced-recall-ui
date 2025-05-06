@@ -1,9 +1,9 @@
 // src/lib/firebase.ts
 "use client";
 
-import { type FirebaseApp } from "firebase/app";
-import { type Firestore } from "firebase/firestore";
-import { type Auth } from "firebase/auth";
+import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, Auth } from "firebase/auth";
 
 // Define local variables that will be initialized lazily
 let app: FirebaseApp | null = null;
@@ -47,7 +47,7 @@ const mockFirestore = {
 
 const mockAuth = {
   currentUser: null,
-  onAuthStateChanged: (fn: (user: null) => void) => {
+  onAuthStateChanged: (fn: (user: any) => void) => {
     fn(null);
     return () => {};
   },
@@ -56,22 +56,13 @@ const mockAuth = {
   signOut: () => Promise.resolve(),
 };
 
-// Only initialize Firebase in browser environment and not during build
-const initFirebase = async () => {
-  // Skip initialization if we're not in a browser, if Firebase is already initialized,
-  // or if we're in a build
+// Synchronously initialize Firebase in browser environment
+const initFirebaseSync = () => {
   if (isServer || app !== null || shouldDisableFirebase) {
-    if (shouldDisableFirebase) {
-      console.log('Skipping Firebase initialization during build');
-    }
     return;
   }
-  
-  try {
-    const { initializeApp, getApps } = await import("firebase/app");
-    const { getFirestore } = await import("firebase/firestore");
-    const { getAuth } = await import("firebase/auth");
 
+  try {
     const firebaseConfig = {
       apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -85,28 +76,35 @@ const initFirebase = async () => {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
     _auth = getAuth(app);
     _db = getFirestore(app);
-    console.log("Firebase initialized in browser");
+    console.log("Firebase initialized synchronously in browser");
   } catch (err) {
-    console.error("Error initializing Firebase:", err);
+    console.error("Error initializing Firebase synchronously:", err);
   }
 };
+
+// Try to initialize Firebase synchronously for immediate use
+if (typeof window !== 'undefined' && !shouldDisableFirebase) {
+  initFirebaseSync();
+}
 
 // Safely get Firebase Auth instance
 export function getFirebaseAuth(): Auth {
   if (isServer) {
-    console.log("Returning mock auth for server environment");
     return mockAuth as unknown as Auth;
   }
   
   // Initialize Firebase if it hasn't been initialized yet
   if (!_auth) {
     // We need to initialize Firebase synchronously here
-    // This is a fallback for when getFirebaseAuth is called before initialization completes
     if (typeof window !== 'undefined' && app === null && !shouldDisableFirebase) {
-      initFirebase().catch(console.error);
+      initFirebaseSync();
     }
-    console.warn("Auth was accessed before initialization!");
-    return mockAuth as unknown as Auth;
+    
+    // If still not initialized, return mock
+    if (!_auth) {
+      console.warn("Auth was accessed before initialization!");
+      return mockAuth as unknown as Auth;
+    }
   }
   
   return _auth;
@@ -115,7 +113,6 @@ export function getFirebaseAuth(): Auth {
 // Safely get Firebase Firestore instance
 export function getFirebaseDb(): Firestore {
   if (isServer) {
-    console.log("Returning mock firestore for server environment");
     return mockFirestore as unknown as Firestore;
   }
   
@@ -123,25 +120,24 @@ export function getFirebaseDb(): Firestore {
   if (!_db) {
     // We need to initialize Firebase synchronously here
     if (typeof window !== 'undefined' && app === null && !shouldDisableFirebase) {
-      initFirebase().catch(console.error);
+      initFirebaseSync();
     }
-    console.warn("Firestore was accessed before initialization!");
-    return mockFirestore as unknown as Firestore;
+    
+    // If still not initialized, return mock
+    if (!_db) {
+      console.warn("Firestore was accessed before initialization!");
+      return mockFirestore as unknown as Firestore;
+    }
   }
   
   return _db;
 }
 
-// For backward compatibility, export objects that are safe in SSR
-export const auth = isServer
-  ? (mockAuth as unknown as Auth) 
-  : (_auth || mockAuth as unknown as Auth);
+// Instead of exporting the raw db and auth objects, export functions that safely get them
+export const db = getFirebaseDb();
+export const auth = getFirebaseAuth();
 
-export const db = isServer
-  ? (mockFirestore as unknown as Firestore) 
-  : (_db || mockFirestore as unknown as Firestore);
-
-// Initialize Firebase immediately in the browser (but not during build)
+// Also initialize Firebase asynchronously for future operations
 if (typeof window !== 'undefined' && !shouldDisableFirebase) {
-  initFirebase().catch(console.error);
+  initFirebaseSync();
 }

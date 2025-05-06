@@ -4,7 +4,7 @@ import { Calendar, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Subject, Topic, Concept } from '@/types/study';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { generateCalendarDescription } from '@/lib/calendar';
 import { checkGoogleCalendarAuth, initiateGoogleCalendarAuth } from '@/lib/googleAuth';
 
@@ -18,6 +18,9 @@ interface ReviewToSync {
   parentTopic?: Topic;
   nextReview: Date;
 }
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export function SyncCalendarButton({ subject, onSync }: SyncCalendarButtonProps) {
   const [isSyncing, setIsSyncing] = useState(false);

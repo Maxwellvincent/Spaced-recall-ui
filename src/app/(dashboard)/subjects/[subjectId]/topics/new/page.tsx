@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
-import type { Subject, Topic } from "@/types/study";
+import type { Subject, Topic, StudyFramework } from "@/types/study";
 import { useAuth } from "@/lib/auth";
 import { Loader2, ArrowLeft } from "lucide-react";
 
@@ -19,6 +19,9 @@ interface ExtendedSubject extends Subject {
   id: string;
   userId: string;
 }
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export default function NewTopicPage({ params }: PageProps) {
   const { user, loading } = useAuth();
@@ -103,13 +106,19 @@ export default function NewTopicPage({ params }: PageProps) {
         examScore: 0,
         weakAreas: [],
         framework: {
+          currentPhase: 'learnRecall',
           progress: {
             learnRecall: 0,
             testingEffect: 0,
             reflectionDiagnosis: 0,
             integration: 0,
-            teaching: 0
-          }
+            teaching: 0,
+          },
+          lastActivityDate: new Date().toISOString(),
+          nextReviewDate: new Date().toISOString(),
+          masteryScore: 0,
+          retentionScore: 0,
+          clarityScore: 0,
         }
       };
 

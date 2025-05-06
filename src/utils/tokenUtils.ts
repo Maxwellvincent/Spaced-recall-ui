@@ -1,5 +1,8 @@
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export interface TokenBalance {
   balance: number;

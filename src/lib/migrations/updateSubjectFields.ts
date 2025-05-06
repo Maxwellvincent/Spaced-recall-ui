@@ -1,6 +1,9 @@
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Subject, Topic } from '@/types';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export async function migrateSubject(subjectId: string) {
   try {

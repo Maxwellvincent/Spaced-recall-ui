@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
 import type { Subject, Topic, StudySession } from "@/types/study";
@@ -15,6 +15,9 @@ interface StudySessionProps {
   subjectId: string;
   topicName: string;
 }
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export default function StudySession({ subjectId, topicName }: StudySessionProps) {
   const { user, loading } = useAuth();

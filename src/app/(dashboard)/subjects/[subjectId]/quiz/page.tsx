@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,9 @@ interface PageProps {
     subjectId: string;
   }
 }
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export default function QuizPage({ params }: PageProps) {
   const { user, loading } = useAuth();

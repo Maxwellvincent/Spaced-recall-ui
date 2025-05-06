@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import type { Subject } from "@/types/study";
@@ -12,6 +12,9 @@ import { MigrationButton } from '@/components/MigrationButton';
 import { SubjectAnalytics } from '@/components/SubjectAnalytics';
 import { SubjectReviewDashboard } from '@/components/SubjectReviewDashboard';
 import { ExamModeSettings } from '@/components/ExamModeSettings';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 interface ExtendedSubject extends Subject {
   id: string;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Navbar from "@/components/Navbar";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 
 export default function DashboardLayout({
   children,

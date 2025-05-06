@@ -1,6 +1,9 @@
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export async function checkGoogleCalendarAuth(): Promise<boolean> {
   const auth = getAuth();

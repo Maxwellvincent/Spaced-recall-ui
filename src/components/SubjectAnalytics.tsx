@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Brain, TrendingUp, TrendingDown, Target, Calendar, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ReviewScheduler } from '@/components/ReviewScheduler';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import type { Topic } from '@/types/study';
 import Link from 'next/link';
@@ -58,6 +58,9 @@ export function SubjectAnalytics({
   const router = useRouter();
   const [quizType, setQuizType] = useState<'all' | 'weak'>('all');
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+
+  // Use getFirebaseDb() to ensure proper initialization
+  const db = getFirebaseDb();
 
   // Add debug logging
   useEffect(() => {

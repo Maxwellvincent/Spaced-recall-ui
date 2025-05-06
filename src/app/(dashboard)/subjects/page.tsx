@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { db } from "@/lib/firebase";
+import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { SubjectCard } from "@/components/ui/subject-card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,9 @@ export default function SubjectsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "level" | "recent">("recent");
+
+  // Use getFirebaseDb() to ensure proper initialization
+  const db = getFirebaseDb();
 
   useEffect(() => {
     async function fetchSubjects() {

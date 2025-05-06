@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseDb } from './firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { User } from 'firebase/auth';
@@ -17,6 +17,7 @@ interface CalendarEvent {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  userInitialized: boolean;
   initiateCalendarAdd: (eventDetails: CalendarEvent) => Promise<void>;
   initiateCalendarSync: () => Promise<void>;
 }
@@ -29,6 +30,7 @@ let authInstance: any = null;
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userState, setUserState] = useState<User | null>(null);
   const [loadingState, setLoadingState] = useState(true);
+  const [userInitialized, setUserInitialized] = useState(false);
   const router = useRouter();
   
   // Initialize Firebase Auth only once in the browser
@@ -53,20 +55,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log("Auth state changed:", user ? "User authenticated" : "No user");
           setUserState(user);
           setLoadingState(false);
+          
+          // If user is authenticated, check/create their database record
+          if (user) {
+            ensureUserExists(user);
+          } else {
+            setUserInitialized(false);
+          }
         },
         (error: any) => {
           console.error("Auth state change error:", error);
           setLoadingState(false);
+          setUserInitialized(false);
         }
       );
     } catch (error) {
       console.error("Error initializing Firebase Auth:", error);
       setLoadingState(false);
+      setUserInitialized(false);
     }
     
     // Clean up subscription
     return () => unsubscribe();
   }, []);
+
+  // Ensure the user exists in Firestore
+  const ensureUserExists = async (user: User) => {
+    try {
+      const db = getFirebaseDb();
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log("Creating new user record in Firestore");
+        // Create a new user record
+        await setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          photoURL: user.photoURL || null,
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          subjects: {},
+          theme: 'Classic',
+          tokens: 100, // Starting tokens
+          xp: 0,
+        });
+      } else {
+        // Update last login time
+        await updateDoc(userRef, {
+          lastLogin: new Date().toISOString(),
+        });
+      }
+      
+      // Mark user as initialized
+      setUserInitialized(true);
+    } catch (error) {
+      console.error("Error ensuring user exists:", error);
+      // Still mark as initialized to prevent infinite loops
+      setUserInitialized(true);
+    }
+  };
 
   const initiateCalendarAdd = async (eventDetails: CalendarEvent) => {
     // Set cookie with event details (expires in 5 minutes)
@@ -159,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     user: userState,
     loading: loadingState,
+    userInitialized,
     initiateCalendarAdd,
     initiateCalendarSync,
   };

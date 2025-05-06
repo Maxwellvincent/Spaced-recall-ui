@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, BookOpen, Archive, PauseCircle, AlertCircle, Clock } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { adjustReviewSchedule } from '@/lib/fsrs';
@@ -20,6 +20,9 @@ interface ExamModeSettingsProps {
   subject: Subject;
   onUpdate: () => void;
 }
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
   const [isUpdating, setIsUpdating] = useState(false);

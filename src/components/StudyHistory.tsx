@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth';
 import { Flame, Brain, Star, Scroll, Trophy, Clock } from 'lucide-react';
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 interface StudySession {
   date: string;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseDb } from '@/lib/firebase';
 import { getThemeConfig } from '@/utils/themeUtils';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -37,6 +37,9 @@ const themes: Theme[] = [
     cost: 200,
   },
 ];
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export function ThemeShop() {
   const { user } = useAuth();

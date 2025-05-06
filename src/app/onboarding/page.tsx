@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth, getFirebaseDb } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 export default function OnboardingPage() {
   const [user, loading] = useAuthState(auth);
