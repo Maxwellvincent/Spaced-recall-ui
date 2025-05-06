@@ -13,22 +13,34 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-  // Only run client-side
+  // Mark when we're running on the client
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
 
+  // Handle authentication redirect with debounce
   useEffect(() => {
-    // Only redirect if we're mounted and not loading
-    if (mounted && !loading && !user) {
-      router.push("/login");
+    // Only check auth state when we're on the client and auth is initialized
+    if (!isClient || loading) return;
+    
+    // If no user and not already redirecting, redirect to login
+    if (!user && !redirecting) {
+      setRedirecting(true);
+      
+      // Add a small delay to avoid rapid redirects
+      const redirectTimeout = setTimeout(() => {
+        router.push("/login");
+      }, 300);
+      
+      return () => clearTimeout(redirectTimeout);
     }
-  }, [user, loading, router, mounted]);
+  }, [user, loading, router, isClient, redirecting]);
 
-  // During SSR or build time, render a minimal shell
-  if (!mounted) {
+  // Show a static loading state during SSR
+  if (!isClient) {
     return (
       <div className="min-h-screen bg-slate-900 text-white">
         <div className="container mx-auto px-4 py-8">
@@ -42,19 +54,31 @@ export default function DashboardLayout({
     );
   }
 
+  // Show loading state while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-          <p className="text-slate-200">Loading...</p>
+          <p className="text-slate-200">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!user) return null;
+  // If redirecting to login, show a minimal loading state
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+          <p className="text-slate-200">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // User is authenticated, render the dashboard
   return (
     <div className="min-h-screen bg-slate-900">
       <Navbar />

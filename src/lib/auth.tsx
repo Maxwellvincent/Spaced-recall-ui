@@ -23,13 +23,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Create a stable auth instance outside of component render cycles
+let authInstance: any = null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [authInitialized, setAuthInitialized] = useState(false);
   const [userState, setUserState] = useState<User | null>(null);
   const [loadingState, setLoadingState] = useState(true);
   const router = useRouter();
   
-  // Initialize Firebase Auth only in the browser
+  // Initialize Firebase Auth only once in the browser
   useEffect(() => {
     // Skip if not in browser
     if (typeof window === 'undefined') {
@@ -37,27 +39,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+    let unsubscribe = () => {};
+    
     try {
-      const auth = getFirebaseAuth();
+      // Only initialize auth once
+      if (!authInstance) {
+        authInstance = getFirebaseAuth();
+      }
       
-      const unsubscribe = auth.onAuthStateChanged(
-        (user) => {
+      // Set up auth state listener
+      unsubscribe = authInstance.onAuthStateChanged(
+        (user: User | null) => {
+          console.log("Auth state changed:", user ? "User authenticated" : "No user");
           setUserState(user);
           setLoadingState(false);
-          setAuthInitialized(true);
         },
-        (error) => {
+        (error: any) => {
           console.error("Auth state change error:", error);
           setLoadingState(false);
-          setAuthInitialized(true);
         }
       );
-      
-      return () => unsubscribe();
     } catch (error) {
       console.error("Error initializing Firebase Auth:", error);
       setLoadingState(false);
     }
+    
+    // Clean up subscription
+    return () => unsubscribe();
   }, []);
 
   const initiateCalendarAdd = async (eventDetails: CalendarEvent) => {
@@ -147,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [userState, loadingState, router]);
 
+  // Create a stable context value to prevent unnecessary re-renders
   const value = {
     user: userState,
     loading: loadingState,
