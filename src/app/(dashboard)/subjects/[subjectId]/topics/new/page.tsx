@@ -93,9 +93,24 @@ export default function NewTopicPage({ params }: PageProps) {
         description: topicDescription.trim(),
         masteryLevel: 0,
         xp: 0,
+        level: 1,
         lastStudied: new Date().toISOString(),
+        totalStudyTime: 0,
+        currentPhase: 'initial',
         studySessions: [],
-        concepts: []
+        activities: [],
+        concepts: [],
+        examScore: 0,
+        weakAreas: [],
+        framework: {
+          progress: {
+            learnRecall: 0,
+            testingEffect: 0,
+            reflectionDiagnosis: 0,
+            integration: 0,
+            teaching: 0
+          }
+        }
       };
 
       // Add new topic to subject
@@ -104,7 +119,9 @@ export default function NewTopicPage({ params }: PageProps) {
       // Update in Firestore
       const subjectRef = doc(db, 'subjects', subject.id);
       await updateDoc(subjectRef, {
-        topics: updatedTopics
+        topics: updatedTopics,
+        totalStudyTime: subject.totalStudyTime || 0,
+        xp: subject.xp || 0
       });
 
       // Navigate back to subject page

@@ -316,13 +316,13 @@ export function updateLoyaltyStatus(
     };
   } else {
     // Same theme
-    return {
-      ...currentLoyalty,
+  return {
+    ...currentLoyalty,
       totalDays: currentLoyalty.totalDays + (daysSinceLastActive > 0 ? 1 : 0),
       streakDays: daysSinceLastActive <= 1 ? currentLoyalty.streakDays + 1 : 1,
-      lastActiveDate: today,
+    lastActiveDate: today,
       stars: calculateStars(currentLoyalty)
-    };
+  };
   }
 }
 

@@ -8,86 +8,65 @@ import Link from "next/link";
 import type { Subject, Topic, StudySession } from "@/types/study";
 import { useAuth } from "@/lib/auth";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { activityTypes, calculateXP } from "@/lib/xpSystem";
+import { activityTypes, calculateSessionXP } from "@/lib/xpSystem";
+import { toast } from "sonner";
 
 interface StudySessionProps {
   subjectId: string;
   topicName: string;
 }
 
-interface ExtendedSubject extends Subject {
-  id: string;
-  topics: Topic[];
-}
-
 export default function StudySession({ subjectId, topicName }: StudySessionProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [subject, setSubject] = useState<ExtendedSubject | null>(null);
+  const [subject, setSubject] = useState<Subject | null>(null);
   const [topic, setTopic] = useState<Topic | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
-  const [activityType, setActivityType] = useState<keyof typeof activityTypes>("study");
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [sessionNotes, setSessionNotes] = useState("");
-  const [sessionRating, setSessionRating] = useState<number>(3);
+  const [sessionRating, setSessionRating] = useState(3);
+  const [activityType, setActivityType] = useState("study");
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-      return;
-    }
-
-    const fetchSubjectAndTopic = async () => {
+    const fetchData = async () => {
       if (!user) return;
 
       try {
-        const decodedTopicName = decodeURIComponent(topicName).trim();
-        
-        const subjectRef = doc(db, 'subjects', subjectId);
+        const subjectRef = doc(db, "subjects", subjectId);
         const subjectDoc = await getDoc(subjectRef);
-        
+
         if (!subjectDoc.exists()) {
-          setError('Subject not found');
+          setError("Subject not found");
           return;
         }
 
-        const subjectData = subjectDoc.data() as ExtendedSubject;
-        
-        if (subjectData.userId !== user.uid) {
-          setError('Access denied');
-          return;
-        }
+        const subjectData = subjectDoc.data() as Subject;
+        setSubject(subjectData);
 
-        const fullSubjectData = {
-          ...subjectData,
-          id: subjectDoc.id,
-          topics: subjectData.topics || [],
-        };
-        
-        const foundTopic = fullSubjectData.topics.find(t => 
-          t.name.trim().toLowerCase() === decodedTopicName.toLowerCase()
+        const decodedTopicName = decodeURIComponent(topicName).trim();
+        const topicData = subjectData.topics.find(
+          (t) => t.name.trim() === decodedTopicName
         );
 
-        if (!foundTopic) {
-          setError('Topic not found');
+        if (!topicData) {
+          setError("Topic not found");
           return;
         }
 
-        setSubject(fullSubjectData);
-        setTopic(foundTopic);
+        setTopic(topicData);
       } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Error loading topic');
+        console.error("Error fetching data:", error);
+        setError("Error loading study session");
       }
     };
 
-    fetchSubjectAndTopic();
-  }, [user, loading, subjectId, topicName, router]);
+    fetchData();
+  }, [user, subjectId, topicName]);
 
   const handleStartSession = () => {
-    setSessionStartTime(new Date());
     setIsSessionActive(true);
+    setSessionStartTime(new Date());
   };
 
   const handleEndSession = async () => {
@@ -100,46 +79,63 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
       );
 
       // Calculate XP based on activity type and session details
-      const activityXP = calculateXP({
-        type: activityType,
+      const { xp: activityXP, masteryGained } = calculateSessionXP({
+        activityType,
+        difficulty: "medium",
         duration: sessionDuration,
-        difficulty: 5, // Medium difficulty
-        focus: sessionRating * 20, // Convert 1-5 rating to 0-100 scale
-        quality: sessionRating * 20, // Convert 1-5 rating to 0-100 scale
+        currentLevel: topic.masteryLevel || 0,
       });
-
-      // Calculate new mastery level (based on session rating)
-      const masteryIncrease = Math.max(1, Math.floor(sessionRating / 2));
-      const newMasteryLevel = Math.min(100, (topic.masteryLevel || 0) + masteryIncrease);
 
       // Create study session
       const newSession: StudySession = {
-        id: `${Date.now()}`,
+        id: crypto.randomUUID(),
         date: new Date().toISOString(),
         duration: sessionDuration,
         topics: [topic.name],
         rating: sessionRating,
         notes: sessionNotes,
         activityType: activityType,
-        performance: sessionRating >= 4 ? 'good' : sessionRating >= 2 ? 'average' : 'needs_improvement'
+        xpGained: activityXP,
+        masteryGained: masteryGained,
+        performance: sessionRating >= 4 ? "good" : sessionRating >= 2 ? "average" : "needs_improvement"
       };
 
-      // Update topic in Firestore
+      // Update topic with new XP and mastery
       const updatedTopics = subject.topics.map(t => {
         if (t.name === topic.name) {
           return {
             ...t,
             xp: (t.xp || 0) + activityXP,
-            masteryLevel: newMasteryLevel,
+            masteryLevel: Math.min(100, (t.masteryLevel || 0) + masteryGained),
             studySessions: [...(t.studySessions || []), newSession]
           };
         }
         return t;
       });
 
-      const subjectRef = doc(db, 'subjects', subject.id);
+      // Calculate new subject totals
+      const totalXP = updatedTopics.reduce((sum, t) => sum + (t.xp || 0), 0);
+      const averageMastery = Math.floor(
+        updatedTopics.reduce((sum, t) => sum + (t.masteryLevel || 0), 0) / updatedTopics.length
+      );
+
+      // Update Firestore with both topic and subject updates
+      const subjectRef = doc(db, "subjects", subjectId);
       await updateDoc(subjectRef, {
-        topics: updatedTopics
+        topics: updatedTopics,
+        xp: totalXP,
+        progress: {
+          totalXP: totalXP,
+          averageMastery: averageMastery,
+          completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+          totalTopics: updatedTopics.length,
+          lastStudied: new Date().toISOString()
+        },
+        masteryPath: {
+          currentLevel: Math.floor(averageMastery / 10),
+          nextLevel: Math.floor(averageMastery / 10) + 1,
+          progress: (averageMastery % 10) * 10
+        }
       });
 
       // Update local state
@@ -148,8 +144,29 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
         return {
           ...prevTopic,
           xp: (prevTopic.xp || 0) + activityXP,
-          masteryLevel: newMasteryLevel,
+          masteryLevel: Math.min(100, (prevTopic.masteryLevel || 0) + masteryGained),
           studySessions: [...(prevTopic.studySessions || []), newSession]
+        };
+      });
+
+      setSubject(prevSubject => {
+        if (!prevSubject) return null;
+        return {
+          ...prevSubject,
+          topics: updatedTopics,
+          xp: totalXP,
+          progress: {
+            totalXP: totalXP,
+            averageMastery: averageMastery,
+            completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+            totalTopics: updatedTopics.length,
+            lastStudied: new Date().toISOString()
+          },
+          masteryPath: {
+            currentLevel: Math.floor(averageMastery / 10),
+            nextLevel: Math.floor(averageMastery / 10) + 1,
+            progress: (averageMastery % 10) * 10
+          }
         };
       });
 
@@ -159,18 +176,20 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
       setSessionNotes("");
       setSessionRating(3);
 
+      toast.success(`Session completed! Earned ${activityXP} XP and increased mastery by ${masteryGained}%`);
+
     } catch (error) {
-      console.error('Error ending session:', error);
-      setError('Error saving session data. Please try again.');
+      console.error("Error ending session:", error);
+      setError("Error saving session data. Please try again.");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-          <p className="text-slate-200">Loading study session...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading study session...</p>
         </div>
       </div>
     );
@@ -178,14 +197,14 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-900 p-6">
+      <div className="min-h-screen p-6">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-4">
-            <p className="text-red-200">{error}</p>
+          <div className="bg-destructive/10 border border-destructive rounded-lg p-4 mb-4">
+            <p className="text-destructive">{error}</p>
           </div>
           <Link
             href="/subjects"
-            className="inline-flex items-center text-slate-200 hover:text-white"
+            className="inline-flex items-center hover:text-foreground/80"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Subjects
@@ -196,96 +215,84 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link
             href={`/subjects/${subjectId}`}
-            className="inline-flex items-center text-slate-200 hover:text-white"
+            className="inline-flex items-center hover:text-foreground/80"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to {subject?.name}
           </Link>
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold text-white mb-2">{topic?.name}</h1>
-          <div className="flex items-center space-x-4 text-slate-300 mb-4">
+        <div className="bg-card rounded-lg p-6 mb-6">
+          <h1 className="text-2xl font-bold mb-2">{topic?.name}</h1>
+          <div className="flex items-center space-x-4 mb-4">
             <span>XP: {topic?.xp || 0}</span>
             <span>Mastery: {topic?.masteryLevel || 0}%</span>
           </div>
           
           {!isSessionActive ? (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Activity Type
-              </label>
-              <select
-                value={activityType}
-                onChange={(e) => setActivityType(e.target.value as keyof typeof activityTypes)}
-                className="w-full p-2 bg-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none mb-4"
-              >
-                {Object.entries(activityTypes).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-sm text-slate-400">
-                {activityTypes[activityType].name} - Base XP Multiplier: {activityTypes[activityType].baseMultiplier}x
-              </p>
-              <p className="mt-1 text-xs text-slate-500 mb-4">
-                Factors: {activityTypes[activityType].factors.join(', ')}
-              </p>
-              <button
-                onClick={handleStartSession}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Start {activityTypes[activityType].name} Session
-              </button>
-            </div>
+            <button
+              onClick={handleStartSession}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-lg"
+            >
+              Start Study Session
+            </button>
           ) : (
             <div className="space-y-4">
-              <div className="bg-slate-700 rounded-lg p-4">
-                <p className="text-slate-300">Session in progress...</p>
-                <p className="text-sm text-slate-400">
-                  Started: {sessionStartTime?.toLocaleTimeString()}
-                </p>
-              </div>
-              
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium mb-1">
+                  Activity Type
+                </label>
+                <select
+                  value={activityType}
+                  onChange={(e) => setActivityType(e.target.value)}
+                  className="w-full bg-background border rounded-lg p-2"
+                >
+                  {Object.keys(activityTypes).map((type) => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
                   Session Notes
                 </label>
                 <textarea
                   value={sessionNotes}
                   onChange={(e) => setSessionNotes(e.target.value)}
-                  className="w-full h-32 p-3 bg-slate-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="What did you learn in this session?"
+                  className="w-full bg-background border rounded-lg p-2 min-h-[100px]"
+                  placeholder="Add any notes about your study session..."
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Rate Your Understanding (1-5)
+                <label className="block text-sm font-medium mb-1">
+                  Session Rating (1-5)
                 </label>
                 <input
                   type="range"
                   min="1"
                   max="5"
                   value={sessionRating}
-                  onChange={(e) => setSessionRating(Number(e.target.value))}
+                  onChange={(e) => setSessionRating(parseInt(e.target.value))}
                   className="w-full"
                 />
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Need More Practice</span>
-                  <span>Perfect Understanding</span>
+                <div className="flex justify-between text-sm">
+                  <span>Poor</span>
+                  <span>Excellent</span>
                 </div>
               </div>
 
               <button
                 onClick={handleEndSession}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2 px-4 rounded-lg"
               >
                 End Session
               </button>

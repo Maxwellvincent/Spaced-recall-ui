@@ -127,7 +127,25 @@ export default function NewSubjectPage() {
           name: initialTopic,
           description: "",
           masteryLevel: 0,
+          xp: 0,
+          level: 1,
           lastStudied: new Date().toISOString(),
+          totalStudyTime: 0,
+          currentPhase: 'initial',
+          studySessions: [],
+          activities: [],
+          concepts: [],
+          examScore: 0,
+          weakAreas: [],
+          framework: {
+            progress: {
+              learnRecall: 0,
+              testingEffect: 0,
+              reflectionDiagnosis: 0,
+              integration: 0,
+              teaching: 0
+            }
+          },
           ...STUDY_MODES[studyMode as keyof typeof STUDY_MODES].structure,
           metrics: STUDY_MODES[studyMode as keyof typeof STUDY_MODES].metrics
         }],

@@ -40,18 +40,30 @@ export interface StudyTopic {
   framework?: StudyFramework;
 }
 
+export interface Concept {
+  name: string;
+  description?: string;
+  masteryLevel: number;
+  lastStudied?: string;
+  nextReview?: string;
+  reviewInterval?: number; // in days
+}
+
 export interface Topic {
   name: string;
-  description: string;
+  description?: string;
   masteryLevel: number;
-  lastStudied: string;
-  totalStudyTime: number;
+  xp: number;
+  lastStudied?: string;
+  nextReview?: string;
+  reviewInterval?: number; // in days
+  concepts: Concept[];
   examScore?: number;
   weakAreas?: string[];
-  concepts?: Topic[];
   currentPhase: string;
   studySessions?: StudySession[];
   framework?: StudyFramework;
+  isHabitBased?: boolean; // Indicates if this is a self-managed daily habit topic like Anki
   mindmap?: {
     nodes: Array<{ id: string; label: string }>;
     edges: Array<{ from: string; to: string }>;
@@ -64,7 +76,6 @@ export interface Topic {
     profitFactor?: number;
     averageRR?: number;
   };
-  xp: number;
   level: number;
   activities?: {
     id: string;
@@ -117,11 +128,28 @@ export interface StudyResource {
   topics: string[];
 }
 
+export interface ReviewLog {
+  date: string;
+  rating: number;
+  interval: number;
+  addedToCalendar?: boolean;
+  calendarEventId?: string;
+}
+
 export interface Subject {
+  id: string;
   name: string;
-  description: string;
-  studyStyle: string;
+  description?: string;
+  studyStyle?: string;
   customStudyStyle?: string;
+  topics: Topic[];
+  progress: {
+    totalXP: number;
+    averageMastery: number;
+    completedTopics: number;
+    totalTopics: number;
+    lastStudied?: string;
+  };
   masteryPath: {
     currentLevel: number;
     nextLevel: number;
@@ -130,18 +158,19 @@ export interface Subject {
   xp: number;
   level: number;
   totalStudyTime: number;
-  topics: Topic[];
-  sessions: {
-    date: string;
-    duration: number;
-    xpEarned: number;
-  }[];
+  sessions: any[];
+  reviewLogs?: ReviewLog[];
+  calendarSynced?: boolean;
   examMode?: {
-    isEnabled: boolean;
-    totalScore: number;
-    lastAttempt: string;
-    weakAreas: string[];
-    topicScores: {
+    isActive: boolean;
+    scheduledDate?: string;
+    completed?: boolean;
+    completedDate?: string;
+    score?: number;
+    isSuspended?: boolean;
+    suspendedDate?: string;
+    weakAreas?: string[];
+    topicScores?: {
       [topicName: string]: {
         score: number;
         lastAttempt: string;
@@ -149,6 +178,10 @@ export interface Subject {
       };
     };
   };
+  status: 'active' | 'archived' | 'completed';
+  userId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StudyRecommendation {
@@ -172,4 +205,12 @@ export interface ProgressMetrics {
   masteryLevel: number;
   xp: number;
   level: number;
+}
+
+export interface ReviewSchedule {
+  topicId: string;
+  conceptId?: string;
+  nextReview: string;
+  interval: number;
+  calendarEventId?: string;
 } 
