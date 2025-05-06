@@ -1,9 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getFirebaseAuth } from "@/lib/firebase";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  onAuthStateChanged
+} from "firebase/auth";
+
+// Initialize Firebase directly in this component
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +31,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.push("/dashboard");
+      }
+      setIsInitialized(true);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const handleEmailLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -19,12 +52,11 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       setError("");
-      const auth = getFirebaseAuth();
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/dashboard");
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Login failed", err);
-      setError("Invalid email or password");
+      setError(err.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -36,19 +68,31 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       setError("");
-      const auth = getFirebaseAuth();
+      
+      // Create a fresh provider instance each time
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
-      await signInWithPopup(auth, provider);
+      
+      // Use signInWithPopup with the local auth instance
+      const result = await signInWithPopup(auth, provider);
+      console.log("Google sign-in successful", result.user.displayName);
       router.push("/dashboard");
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Google login failed", err);
-      setError("Google sign-in failed");
+      setError(err.message || "Google sign-in failed");
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto p-6 text-center">
