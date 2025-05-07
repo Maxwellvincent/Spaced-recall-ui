@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { TopicForm, type TopicFormData } from "@/components/TopicForm";
+import SessionForm from '@/components/SessionForm';
 
 interface TopicPageProps {
   params: {
@@ -213,33 +214,33 @@ const handleAddSession = async (sessionData: Partial<StudySessionType>) => {
       totalStudyTime: (topic.totalStudyTime || 0) + (sessionData.duration || 0)
     };
 
-    // Calculate new subject totals
-    const updatedSubject = {
-      ...subject,
-      totalStudyTime: (subject.totalStudyTime || 0) + (sessionData.duration || 0),
-      xp: subject.topics.reduce((total, t) => {
-        if (t.name === topic.name) {
-          return total + updatedTopic.xp;
-        }
-        return total + (t.xp || 0);
-      }, 0),
-      masteryPath: {
-        ...subject.masteryPath,
-        progress: Math.min(100, Math.floor(
-          subject.topics.reduce((total, t) => {
-            if (t.name === topic.name) {
-              return total + updatedTopic.masteryLevel;
-            }
-            return total + (t.masteryLevel || 0);
-          }, 0) / subject.topics.length
-        ))
-      }
-    };
-
     // Update the topics array in the subject
     const updatedTopics = subject.topics.map(t =>
       t.name === topic.name ? updatedTopic : t
     );
+
+    // Calculate average mastery across all topics
+    const averageMastery = updatedTopics.reduce((total, t) => 
+      total + (t.masteryLevel || 0), 0) / updatedTopics.length;
+
+    // Calculate new subject totals
+    const updatedSubject = {
+      ...subject,
+      totalStudyTime: (subject.totalStudyTime || 0) + (sessionData.duration || 0),
+      xp: updatedTopics.reduce((total, t) => total + (t.xp || 0), 0),
+      masteryPath: {
+        ...subject.masteryPath,
+        progress: Math.min(100, Math.floor(averageMastery % 10) * 10)
+      },
+      progress: {
+        ...(subject.progress || {}),
+        totalXP: updatedTopics.reduce((total, t) => total + (t.xp || 0), 0),
+        averageMastery: Math.round(averageMastery),
+        completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+        totalTopics: updatedTopics.length,
+        lastStudied: new Date().toISOString()
+      }
+    };
 
     // Update Firestore
     const subjectRef = doc(db, 'subjects', params.subjectId);
@@ -247,12 +248,30 @@ const handleAddSession = async (sessionData: Partial<StudySessionType>) => {
       topics: updatedTopics,
       xp: updatedSubject.xp,
       totalStudyTime: updatedSubject.totalStudyTime,
-      masteryPath: updatedSubject.masteryPath
+      masteryPath: updatedSubject.masteryPath,
+      progress: {
+        ...(subject.progress || {}),
+        totalXP: updatedSubject.xp,
+        averageMastery: Math.round(averageMastery),
+        completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+        totalTopics: updatedTopics.length,
+        lastStudied: new Date().toISOString()
+      }
     });
 
     // Update local state
     setTopic(updatedTopic);
-    setSubject(updatedSubject);
+    setSubject({
+      ...updatedSubject,
+      progress: {
+        ...(subject.progress || {}),
+        totalXP: updatedSubject.xp,
+        averageMastery: Math.round(averageMastery),
+        completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+        totalTopics: updatedTopics.length,
+        lastStudied: new Date().toISOString()
+      }
+    });
 
     toast({
       title: "Success",
@@ -295,29 +314,6 @@ const handleUpdateSession = async (sessionId: string, updates: Partial<StudySess
       totalStudyTime: Math.max(0, (topic.totalStudyTime || 0) + studyTimeChange)
     };
 
-    // Calculate new subject totals
-    const updatedSubject = {
-      ...subject,
-      totalStudyTime: Math.max(0, (subject.totalStudyTime || 0) + studyTimeChange),
-      xp: subject.topics.reduce((total, t) => {
-        if (t.name === topic.name) {
-          return total + updatedTopic.xp;
-        }
-        return total + (t.xp || 0);
-      }, 0),
-      masteryPath: {
-        ...subject.masteryPath,
-        progress: Math.min(100, Math.floor(
-          subject.topics.reduce((total, t) => {
-            if (t.name === topic.name) {
-              return total + updatedTopic.masteryLevel;
-            }
-            return total + (t.masteryLevel || 0);
-          }, 0) / subject.topics.length
-        ))
-      }
-    };
-
     // Find and update the corresponding activity if it exists
     const sessionActivity = topic.activities?.find(
       a => a.type === oldSession.activityType && a.completedAt === oldSession.date
@@ -339,18 +335,57 @@ const handleUpdateSession = async (sessionId: string, updates: Partial<StudySess
       );
     }
 
+    // Update the topics array in the subject
+    const updatedTopics = subject.topics.map(t =>
+      t.name === topic.name ? updatedTopic : t
+    );
+
+    // Calculate average mastery across all topics
+    const averageMastery = updatedTopics.reduce((total, t) => 
+      total + (t.masteryLevel || 0), 0) / updatedTopics.length;
+
+    // Calculate new subject totals
+    const updatedSubject = {
+      ...subject,
+      totalStudyTime: Math.max(0, (subject.totalStudyTime || 0) + studyTimeChange),
+      xp: updatedTopics.reduce((total, t) => total + (t.xp || 0), 0),
+      masteryPath: {
+        ...subject.masteryPath,
+        progress: Math.min(100, Math.floor(averageMastery % 10) * 10)
+      },
+      progress: {
+        ...(subject.progress || {}),
+        totalXP: updatedTopics.reduce((total, t) => total + (t.xp || 0), 0),
+        averageMastery: Math.round(averageMastery),
+        completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+        totalTopics: updatedTopics.length,
+        lastStudied: new Date().toISOString()
+      }
+    };
+
     // Update Firestore
     const subjectRef = doc(db, 'subjects', params.subjectId);
     await updateDoc(subjectRef, {
-      topics: subject.topics.map(t => t.name === topic.name ? updatedTopic : t),
+      topics: updatedTopics,
       xp: updatedSubject.xp,
       totalStudyTime: updatedSubject.totalStudyTime,
-      masteryPath: updatedSubject.masteryPath
+      masteryPath: updatedSubject.masteryPath,
+      progress: updatedSubject.progress
     });
 
     // Update local state
     setTopic(updatedTopic);
-    setSubject(updatedSubject);
+    setSubject({
+      ...updatedSubject,
+      progress: {
+        ...(subject.progress || {}),
+        totalXP: updatedSubject.xp,
+        averageMastery: Math.round(averageMastery),
+        completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
+        totalTopics: updatedTopics.length,
+        lastStudied: new Date().toISOString()
+      }
+    });
 
     toast({
       title: "Success",
@@ -890,39 +925,41 @@ const handleUpdateTopic = async (data: TopicFormData) => {
 
         {/* Add Session Dialog */}
         <Dialog open={isAddingSession} onOpenChange={setIsAddingSession}>
-          <DialogContent>
+          <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl w-full">
             <DialogHeader>
-              <DialogTitle>Add Study Session</DialogTitle>
+              <DialogTitle className="text-slate-100">Add Study Session</DialogTitle>
             </DialogHeader>
-            <StudySession
+            <SessionForm
               subject={subject}
               topic={topic}
               onComplete={handleSaveNewSession}
+              onCancel={() => setIsAddingSession(false)}
             />
           </DialogContent>
         </Dialog>
 
         {/* Edit Session Dialog */}
         <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
-          <DialogContent>
+          <DialogContent className="bg-slate-900 border-slate-800 max-w-2xl w-full">
             <DialogHeader>
-              <DialogTitle>Edit Study Session</DialogTitle>
+              <DialogTitle className="text-slate-100">Edit Study Session</DialogTitle>
             </DialogHeader>
             {editingSession && (
-              <StudySession
+              <SessionForm
                 subject={subject}
                 topic={topic}
                 initialData={editingSession}
                 onComplete={handleSaveEdit}
+                onCancel={() => setEditingSession(null)}
               />
             )}
           </DialogContent>
         </Dialog>
 
         <Dialog open={isEditingTopic} onOpenChange={setIsEditingTopic}>
-          <DialogContent>
+          <DialogContent className="bg-slate-900 border-slate-800">
             <DialogHeader>
-              <DialogTitle>Edit Topic</DialogTitle>
+              <DialogTitle className="text-slate-100">Edit Topic</DialogTitle>
             </DialogHeader>
             <TopicForm
               initialData={topic}

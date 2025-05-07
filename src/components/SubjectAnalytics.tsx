@@ -179,7 +179,7 @@ export function SubjectAnalytics({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-slate-900 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
           <div className="flex items-center space-x-2">
             <Star className="h-5 w-5 text-yellow-500" />
             <h3 className="font-medium text-slate-200">Total XP</h3>
@@ -187,14 +187,14 @@ export function SubjectAnalytics({
           <p className="text-2xl font-bold text-slate-100">{progress.totalXP.toLocaleString()}</p>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
           <div className="flex items-center space-x-2">
             <Brain className="h-5 w-5 text-blue-500" />
             <h3 className="font-medium text-slate-200">Average Mastery</h3>
           </div>
           <div className="space-y-2">
             <p className="text-2xl font-bold text-slate-100">{Math.round(progress.averageMastery)}%</p>
-            <div className="w-full bg-slate-700 rounded-full h-2">
+            <div className="w-full bg-slate-800 rounded-full h-2">
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-300",
@@ -207,7 +207,7 @@ export function SubjectAnalytics({
           </div>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
           <div className="flex items-center space-x-2">
             <Calendar className="h-5 w-5 text-green-500" />
             <h3 className="font-medium text-slate-200">Topics</h3>
@@ -218,7 +218,7 @@ export function SubjectAnalytics({
           </p>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-purple-500" />
             <h3 className="font-medium text-slate-200">Areas to Focus</h3>
@@ -227,22 +227,22 @@ export function SubjectAnalytics({
         </Card>
       </div>
 
-      <Card className="p-6 bg-slate-900 border-slate-800">
-        <h3 className="text-lg font-medium mb-4 text-slate-200">Areas Needing Review</h3>
+      <Card className="p-6 bg-slate-950 border-slate-800">
+        <h3 className="text-lg font-medium mb-4 text-slate-100">Areas Needing Review</h3>
         {weakAreas.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {weakAreas.map((topic) => (
               <div
                 key={topic.name}
                 onClick={() => router.push(`/subjects/${subjectId}/topics/${encodeURIComponent(topic.name)}`)}
-                className="p-3 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer group"
+                className="p-3 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/70 transition-colors cursor-pointer group"
               >
-                <h4 className="font-medium text-sm mb-2 text-slate-200 line-clamp-1 group-hover:text-blue-400 transition-colors">
+                <h4 className="font-medium text-sm mb-2 text-slate-100 line-clamp-1 group-hover:text-blue-400 transition-colors">
                   {topic.name}
                 </h4>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">Mastery</span>
+                    <span className="text-slate-300">Mastery</span>
                     <span className={cn(
                       "font-medium",
                       topic.masteryLevel < 40 ? "text-red-400" :
@@ -251,7 +251,7 @@ export function SubjectAnalytics({
                       {Math.round(topic.masteryLevel)}%
                     </span>
                   </div>
-                  <div className="w-full bg-slate-700 rounded-full h-1">
+                  <div className="w-full bg-slate-800 rounded-full h-1">
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-300",
@@ -262,7 +262,7 @@ export function SubjectAnalytics({
                     />
                   </div>
                   {topic.lastStudied && (
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-slate-400 truncate">
                       Last: {dayjs(topic.lastStudied).fromNow()}
                     </p>
                   )}
@@ -271,10 +271,10 @@ export function SubjectAnalytics({
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-slate-300">
             <p>No topics currently need review! 🎉</p>
             {habitTopics.length > 0 && (
-              <p className="mt-2 text-sm">
+              <p className="mt-2 text-sm text-slate-400">
                 Note: Self-managed topics like Anki decks are tracked separately for XP but not included in review recommendations.
               </p>
             )}
@@ -282,7 +282,7 @@ export function SubjectAnalytics({
         )}
       </Card>
 
-      <Card className="border-slate-700 bg-slate-800/50">
+      <Card className="border-slate-800 bg-slate-950">
         <CardHeader>
           <CardTitle className="flex items-center text-slate-100">
             <Brain className="h-5 w-5 mr-2 text-blue-400" />

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Navbar from "@/components/Navbar";
 import { Loader2 } from "lucide-react";
+import { ThemeWrapper } from "@/components/ThemeWrapper";
+import { ThemeDebug } from "@/components/ThemeDebug";
 import Link from "next/link";
 
 export default function DashboardLayout({
@@ -81,9 +83,10 @@ export default function DashboardLayout({
 
   // User is authenticated, render the dashboard
   return (
-    <div className="min-h-screen bg-slate-900">
+    <ThemeWrapper className="min-h-screen transition-colors duration-300">
       <Navbar />
       <main>{children}</main>
-    </div>
+      {process.env.NODE_ENV !== 'production' && <ThemeDebug />}
+    </ThemeWrapper>
   );
 } 

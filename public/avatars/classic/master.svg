@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="50" cy="35" r="25" fill="#7C3AED"/>
-  <path d="M50 65 C20 65 15 85 15 100 L85 100 C85 85 80 65 50 65" fill="#7C3AED"/>
-  <circle cx="40" cy="30" r="5" fill="white"/>
-  <circle cx="60" cy="30" r="5" fill="white"/>
-  <path d="M40 45 Q50 55 60 45" fill="none" stroke="white" stroke-width="3"/>
-  <path d="M20 20 L80 20" stroke="#FCD34D" stroke-width="5"/>
-  <path d="M25 15 L75 15" stroke="#FCD34D" stroke-width="5"/>
-  <circle cx="50" cy="10" r="5" fill="#FCD34D"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="40" r="25" fill="#87CEEB" />
+  <path d="M50 70 L30 100 L70 100 Z" fill="#1E40AF" />
+  <rect x="40" y="65" width="20" height="10" fill="#1E40AF" />
+  <circle cx="40" cy="35" r="5" fill="#000" />
+  <circle cx="60" cy="35" r="5" fill="#000" />
+  <path d="M40 50 Q50 60 60 50" fill="none" stroke="#000" stroke-width="2" />
+  <!-- Crown -->
+  <path d="M30 25 L50 15 L70 25 L65 30 L35 30 Z" fill="#FFD700" />
+  <!-- Badge -->
+  <circle cx="50" cy="80" r="8" fill="#60A5FA" />
+  <path d="M45 80 L50 75 L55 80 L50 85 Z" fill="#FFFFFF" />
 </svg> 

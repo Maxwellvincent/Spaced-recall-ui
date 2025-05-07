@@ -76,10 +76,13 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
     if (!topic || !subject || !sessionStartTime) return;
 
     try {
+      console.log(`StudySession: Ending session for subject ${subject.id}, topic ${topic.name}`);
+      
       // Calculate session duration in minutes
       const sessionDuration = Math.round(
         (new Date().getTime() - sessionStartTime.getTime()) / 60000
       );
+      console.log(`StudySession: Session duration: ${sessionDuration} minutes`);
 
       // Calculate XP based on activity type and session details
       const { xp: activityXP, masteryGained } = calculateSessionXP({
@@ -88,6 +91,7 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
         duration: sessionDuration,
         currentLevel: topic.masteryLevel || 0,
       });
+      console.log(`StudySession: Calculated XP: ${activityXP}, masteryGained: ${masteryGained}`);
 
       // Create study session
       const newSession: StudySession = {
@@ -102,48 +106,94 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
         masteryGained: masteryGained,
         performance: sessionRating >= 4 ? "good" : sessionRating >= 2 ? "average" : "needs_improvement"
       };
+      console.log(`StudySession: Created new session:`, newSession);
 
       // Update topic with new XP and mastery
       const updatedTopics = subject.topics.map(t => {
         if (t.name === topic.name) {
-          return {
+          console.log(`StudySession: Updating topic ${t.name} - adding ${activityXP} XP and ${masteryGained}% mastery`);
+          const updatedTopic = {
             ...t,
             xp: (t.xp || 0) + activityXP,
             masteryLevel: Math.min(100, (t.masteryLevel || 0) + masteryGained),
             studySessions: [...(t.studySessions || []), newSession]
           };
+          console.log(`StudySession: New topic values - XP: ${updatedTopic.xp}, masteryLevel: ${updatedTopic.masteryLevel}`);
+          return updatedTopic;
         }
         return t;
       });
 
       // Calculate new subject totals
-      const totalXP = updatedTopics.reduce((sum, t) => sum + (t.xp || 0), 0);
-      const averageMastery = Math.floor(
-        updatedTopics.reduce((sum, t) => sum + (t.masteryLevel || 0), 0) / updatedTopics.length
-      );
-
-      // Update Firestore with both topic and subject updates
-      const subjectRef = doc(db, "subjects", subjectId);
-      await updateDoc(subjectRef, {
-        topics: updatedTopics,
-        xp: totalXP,
-        progress: {
-          totalXP: totalXP,
-          averageMastery: averageMastery,
-          completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
-          totalTopics: updatedTopics.length,
-          lastStudied: new Date().toISOString()
-        },
-        masteryPath: {
-          currentLevel: Math.floor(averageMastery / 10),
-          nextLevel: Math.floor(averageMastery / 10) + 1,
-          progress: (averageMastery % 10) * 10
+      const totalTopics = updatedTopics.length;
+      let validTopicsCount = 0;
+      let totalTopicMastery = 0;
+      let totalXP = 0;
+      
+      updatedTopics.forEach(t => {
+        totalXP += (t.xp || 0);
+        
+        if (t && typeof t.masteryLevel === 'number') {
+          validTopicsCount++;
+          totalTopicMastery += t.masteryLevel;
         }
       });
+      
+      const averageMastery = validTopicsCount > 0 
+        ? Math.floor(totalTopicMastery / validTopicsCount) 
+        : 0;
+      
+      const completedTopics = updatedTopics.filter(t => 
+        (t && typeof t.masteryLevel === 'number' && t.masteryLevel >= 80)
+      ).length;
+      
+      console.log(`StudySession: Calculated subject totals - XP: ${totalXP}, avgMastery: ${averageMastery}, completed: ${completedTopics}/${totalTopics}`);
+
+      // Prepare progress update
+      const progressUpdate = {
+        totalXP: totalXP,
+        averageMastery: averageMastery,
+        completedTopics: completedTopics,
+        totalTopics: totalTopics,
+        lastStudied: new Date().toISOString()
+      };
+      
+      const masteryPathUpdate = {
+        currentLevel: Math.floor(averageMastery / 10),
+        nextLevel: Math.floor(averageMastery / 10) + 1,
+        progress: (averageMastery % 10) * 10
+      };
+      
+      console.log(`StudySession: Prepared updates:`, {
+        progress: progressUpdate,
+        masteryPath: masteryPathUpdate
+      });
+
+      // Update Firestore with both topic and subject updates
+      try {
+        console.log(`StudySession: Updating Firestore for subject ${subject.id}`);
+        const db = getFirebaseDb();
+        if (!db) {
+          throw new Error("Database connection failed");
+        }
+        
+        const subjectRef = doc(db, "subjects", subjectId);
+        await updateDoc(subjectRef, {
+          topics: updatedTopics,
+          xp: totalXP,
+          progress: progressUpdate,
+          masteryPath: masteryPathUpdate
+        });
+        console.log(`StudySession: Firestore update successful`);
+      } catch (updateError) {
+        console.error("StudySession: Error updating Firestore:", updateError);
+        throw new Error(`Failed to update session data: ${updateError.message}`);
+      }
 
       // Update local state
       setTopic(prevTopic => {
         if (!prevTopic) return null;
+        console.log(`StudySession: Updating local topic state`);
         return {
           ...prevTopic,
           xp: (prevTopic.xp || 0) + activityXP,
@@ -154,22 +204,13 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
 
       setSubject(prevSubject => {
         if (!prevSubject) return null;
+        console.log(`StudySession: Updating local subject state`);
         return {
           ...prevSubject,
           topics: updatedTopics,
           xp: totalXP,
-          progress: {
-            totalXP: totalXP,
-            averageMastery: averageMastery,
-            completedTopics: updatedTopics.filter(t => (t.masteryLevel || 0) >= 80).length,
-            totalTopics: updatedTopics.length,
-            lastStudied: new Date().toISOString()
-          },
-          masteryPath: {
-            currentLevel: Math.floor(averageMastery / 10),
-            nextLevel: Math.floor(averageMastery / 10) + 1,
-            progress: (averageMastery % 10) * 10
-          }
+          progress: progressUpdate,
+          masteryPath: masteryPathUpdate
         };
       });
 
@@ -180,10 +221,11 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
       setSessionRating(3);
 
       toast.success(`Session completed! Earned ${activityXP} XP and increased mastery by ${masteryGained}%`);
+      console.log(`StudySession: Session completed successfully`);
 
     } catch (error) {
-      console.error("Error ending session:", error);
-      setError("Error saving session data. Please try again.");
+      console.error("StudySession: Error ending session:", error);
+      setError(`Error saving session data: ${error.message}`);
     }
   };
 

@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { getFirebaseDb } from "@/lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, updateDoc, query, where, getDocs } from "firebase/firestore";
 import { Subject, Topic } from "@/types/study";
 import { Loader2, Scroll, Flame, Brain, Star } from "lucide-react";
+
+// Use getFirebaseDb() to ensure proper initialization
+const db = getFirebaseDb();
 
 interface LoggedStudySession {
   userId: string;
@@ -64,13 +68,40 @@ export default function StudyLogger() {
     technique: 50,
     understanding: 50
   });
+  const [showCreateSubject, setShowCreateSubject] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [creatingSubject, setCreatingSubject] = useState(false);
+  const [selectedConcept, setSelectedConcept] = useState("");
+  const [showCreateConcept, setShowCreateConcept] = useState(false);
+  const [newConceptName, setNewConceptName] = useState("");
+  const [newConceptDescription, setNewConceptDescription] = useState("");
+  const [creatingConcept, setCreatingConcept] = useState(false);
 
   useEffect(() => {
     if (!user) return;
 
+    // Fetch subjects for the dropdown
+    const fetchSubjects = async () => {
+      try {
+        const firestore = getFirebaseDb();
+        const subjectsRef = collection(firestore, 'subjects');
+        const q = query(subjectsRef, where('userId', '==', user.uid));
+        const querySnapshot = await getDocs(q);
+        const subjectsList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setSubjects(subjectsList);
+      } catch (err) {
+        console.error('Error fetching subjects for study logger:', err);
+      }
+    };
+    fetchSubjects();
+
     const fetchUserPreferences = async () => {
       try {
-        const userRef = doc(db, 'users', user.uid);
+        const firestore = getFirebaseDb();
+        const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userRef);
         
         if (userDoc.exists()) {
@@ -99,6 +130,15 @@ export default function StudyLogger() {
     }
 
     try {
+      console.log(`StudyLogger: Logging session for subject ${selectedSubject}, topic ${selectedTopic}`);
+      
+      // Get a fresh Firestore instance
+      const firestore = getFirebaseDb();
+      if (!firestore) {
+        throw new Error("Failed to initialize Firestore");
+      }
+      
+      // 1. Create and save the session log
       const sessionData: LoggedStudySession = {
         userId: user.uid,
         subject: selectedSubject,
@@ -118,7 +158,99 @@ export default function StudyLogger() {
         })
       };
 
-      await addDoc(collection(db, "studySessions"), sessionData);
+      await addDoc(collection(firestore, "studySessions"), sessionData);
+      console.log(`StudyLogger: Session logged successfully`);
+
+      // 2. Find the corresponding subject document to update mastery
+      try {
+        console.log(`StudyLogger: Finding subject document for ${selectedSubject}`);
+        
+        // Find the subject document ID first
+        const subjectsRef = collection(firestore, "subjects");
+        const q = query(
+          subjectsRef, 
+          where("userId", "==", user.uid),
+          where("name", "==", selectedSubject)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+          console.warn(`StudyLogger: Subject not found in database: ${selectedSubject}`);
+        } else {
+          console.log(`StudyLogger: Found ${querySnapshot.size} matching subjects`);
+          
+          // Update each matching subject (should normally be just one)
+          for (const docSnapshot of querySnapshot.docs) {
+            console.log(`StudyLogger: Updating subject ${docSnapshot.id}`);
+            
+            const subjectData = docSnapshot.data() as Subject;
+            const subjectId = docSnapshot.id;
+            
+            // Find the topic in the subject
+            const topicIndex = subjectData.topics.findIndex(t => t.name === selectedTopic);
+            
+            if (topicIndex >= 0) {
+              // Calculate mastery improvement based on confidence
+              const masteryGained = Math.floor(confidence / 10);
+              const currentMastery = subjectData.topics[topicIndex].masteryLevel || 0;
+              const newMastery = Math.min(100, currentMastery + masteryGained);
+              
+              console.log(`StudyLogger: Topic found - current mastery: ${currentMastery}, new mastery: ${newMastery}`);
+              
+              // Create updated topics array
+              const updatedTopics = [...subjectData.topics];
+              updatedTopics[topicIndex] = {
+                ...updatedTopics[topicIndex],
+                masteryLevel: newMastery,
+                lastStudied: new Date().toISOString()
+              };
+              
+              // Calculate new average mastery
+              let validTopicsCount = 0;
+              let totalMastery = 0;
+              
+              updatedTopics.forEach(topic => {
+                if (topic && typeof topic.masteryLevel === 'number') {
+                  validTopicsCount++;
+                  totalMastery += topic.masteryLevel;
+                }
+              });
+              
+              const avgMastery = validTopicsCount > 0 
+                ? Math.floor(totalMastery / validTopicsCount) 
+                : 0;
+              
+              const completedTopics = updatedTopics.filter(t => 
+                (t && typeof t.masteryLevel === 'number' && t.masteryLevel >= 80)
+              ).length;
+              
+              console.log(`StudyLogger: Calculated average mastery: ${avgMastery}%, completed topics: ${completedTopics}/${updatedTopics.length}`);
+              
+              // Update the subject document
+              const subjectRef = doc(firestore, "subjects", subjectId);
+              await updateDoc(subjectRef, {
+                topics: updatedTopics,
+                progress: {
+                  ...subjectData.progress,
+                  averageMastery: avgMastery,
+                  completedTopics: completedTopics,
+                  totalTopics: updatedTopics.length,
+                  lastStudied: new Date().toISOString()
+                }
+              });
+              
+              console.log(`StudyLogger: Subject ${subjectId} updated successfully`);
+            } else {
+              console.warn(`StudyLogger: Topic '${selectedTopic}' not found in subject ${subjectId}`);
+            }
+          }
+        }
+      } catch (updateError) {
+        console.error("StudyLogger: Error updating subject mastery:", updateError);
+        // We don't fail the whole operation if update fails, just log the error
+      }
+      
       setMessage("Training session logged successfully! Your ninja way grows stronger!");
       
       // Reset form
@@ -137,8 +269,73 @@ export default function StudyLogger() {
       
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      console.error("Error logging study session:", err);
-      setError("Failed to log training session");
+      console.error("StudyLogger: Error logging study session:", err);
+      setError(`Failed to log training session: ${err.message || "Unknown error"}`);
+    }
+  };
+
+  const handleCreateSubject = async () => {
+    if (!user || !newSubjectName.trim()) return;
+    setCreatingSubject(true);
+    try {
+      const firestore = getFirebaseDb();
+      const newSubject = {
+        name: newSubjectName.trim(),
+        userId: user.uid,
+        topics: [],
+        xp: 0,
+        level: 0,
+        totalStudyTime: 0,
+        createdAt: new Date().toISOString(),
+      };
+      const docRef = await addDoc(collection(firestore, "subjects"), newSubject);
+      const created = { ...newSubject, id: docRef.id };
+      setSubjects(prev => [...prev, created]);
+      setSelectedSubject(newSubject.name.trim());
+      setShowCreateSubject(false);
+      setNewSubjectName("");
+    } catch (err) {
+      console.error("Error creating subject:", err);
+      setError("Failed to create subject. Please try again.");
+    } finally {
+      setCreatingSubject(false);
+    }
+  };
+
+  const handleCreateConcept = async () => {
+    if (!user || !selectedSubjectObj || !selectedTopicObj || !newConceptName.trim()) return;
+    setCreatingConcept(true);
+    try {
+      const firestore = getFirebaseDb();
+      // Add concept to topic in Firestore
+      const updatedConcept = {
+        name: newConceptName.trim(),
+        description: newConceptDescription.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      // Update the topic's concepts array
+      const updatedTopics = selectedSubjectObj.topics.map(t =>
+        t.name === selectedTopic ? {
+          ...t,
+          concepts: [...(t.concepts || []), updatedConcept]
+        } : t
+      );
+      // Update in Firestore
+      const subjectRef = doc(firestore, 'subjects', selectedSubjectObj.id);
+      await updateDoc(subjectRef, { topics: updatedTopics });
+      // Update local state
+      setSubjects(prev => prev.map(s =>
+        s.id === selectedSubjectObj.id ? { ...s, topics: updatedTopics } : s
+      ));
+      setSelectedConcept(newConceptName.trim());
+      setShowCreateConcept(false);
+      setNewConceptName("");
+      setNewConceptDescription("");
+    } catch (err) {
+      console.error("Error creating concept:", err);
+      setError("Failed to create concept. Please try again.");
+    } finally {
+      setCreatingConcept(false);
     }
   };
 
@@ -154,6 +351,14 @@ export default function StudyLogger() {
     return "Log Study Session";
   };
 
+  // Find the selected subject and topic objects
+  const selectedSubjectObj = subjects.find(s => s.name === selectedSubject);
+  const selectedTopicObj = selectedSubjectObj?.topics?.find(t => t.name === selectedTopic);
+  const concepts = selectedTopicObj?.concepts || [];
+
+  // Find the selected concept object
+  const selectedConceptObj = concepts.find(c => c.name === selectedConcept);
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="max-w-2xl mx-auto p-6">
@@ -168,7 +373,15 @@ export default function StudyLogger() {
               </label>
               <select
                 value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === "_create") {
+                    setShowCreateSubject(true);
+                    setSelectedSubject("");
+                  } else {
+                    setShowCreateSubject(false);
+                    setSelectedSubject(e.target.value);
+                  }
+                }}
                 className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 required
               >
@@ -178,7 +391,28 @@ export default function StudyLogger() {
                     {subject.name}
                   </option>
                 ))}
+                <option value="_create">+ Create new subject</option>
               </select>
+              {showCreateSubject && (
+                <div className="mt-2 flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={newSubjectName}
+                    onChange={e => setNewSubjectName(e.target.value)}
+                    placeholder="New subject name"
+                    className="flex-1 p-2 bg-slate-700 border border-slate-600 rounded text-white"
+                    disabled={creatingSubject}
+                  />
+                  <button
+                    type="button"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded disabled:opacity-50"
+                    onClick={handleCreateSubject}
+                    disabled={creatingSubject || !newSubjectName.trim()}
+                  >
+                    {creatingSubject ? "Creating..." : "Add"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
@@ -187,7 +421,10 @@ export default function StudyLogger() {
               </label>
               <select
                 value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
+                onChange={(e) => {
+                  setSelectedTopic(e.target.value);
+                  setSelectedConcept(""); // Reset concept when topic changes
+                }}
                 className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 required
               >
@@ -201,6 +438,66 @@ export default function StudyLogger() {
                       </option>
                     ))}
               </select>
+              {/* Concept dropdown if topic has concepts */}
+              {concepts.length > 0 && (
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Concept</label>
+                  <select
+                    value={selectedConcept}
+                    onChange={e => {
+                      if (e.target.value === "_create_concept") {
+                        setShowCreateConcept(true);
+                        setSelectedConcept("");
+                      } else {
+                        setShowCreateConcept(false);
+                        setSelectedConcept(e.target.value);
+                      }
+                    }}
+                    className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    required
+                  >
+                    <option value="">Select a concept</option>
+                    {concepts.map((concept) => (
+                      <option key={`concept-${concept.name}`} value={concept.name}>{concept.name}</option>
+                    ))}
+                    <option value="_create_concept">+ Add new concept</option>
+                  </select>
+                  {showCreateConcept && (
+                    <div className="mt-2 flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={newConceptName}
+                        onChange={e => setNewConceptName(e.target.value)}
+                        placeholder="New concept name"
+                        className="p-2 bg-slate-700 border border-slate-600 rounded text-white"
+                        disabled={creatingConcept}
+                      />
+                      <textarea
+                        value={newConceptDescription}
+                        onChange={e => setNewConceptDescription(e.target.value)}
+                        placeholder="Concept description (optional)"
+                        className="p-2 bg-slate-700 border border-slate-600 rounded text-white"
+                        rows={2}
+                        disabled={creatingConcept}
+                      />
+                      <button
+                        type="button"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded disabled:opacity-50"
+                        onClick={handleCreateConcept}
+                        disabled={creatingConcept || !newConceptName.trim()}
+                      >
+                        {creatingConcept ? "Creating..." : "Add Concept"}
+                      </button>
+                    </div>
+                  )}
+                  {selectedConceptObj && !showCreateConcept && (
+                    <div className="mt-2 p-2 bg-slate-700 rounded text-slate-200 text-xs">
+                      <div className="font-semibold mb-1">{selectedConceptObj.name}</div>
+                      <div>{selectedConceptObj.description || "No description available."}</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

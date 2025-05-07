@@ -37,57 +37,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Skip if not in browser
     if (typeof window === 'undefined') {
+      console.log("Auth: Running on server, skipping auth initialization");
       setLoadingState(false);
       return;
     }
     
+    console.log("Auth: Initializing auth in browser");
     let unsubscribe = () => {};
     
     try {
       // Only initialize auth once
       if (!authInstance) {
+        console.log("Auth: Getting Firebase auth instance");
         authInstance = getFirebaseAuth();
       }
       
       // Set up auth state listener
+      console.log("Auth: Setting up auth state listener");
       unsubscribe = authInstance.onAuthStateChanged(
         (user: User | null) => {
-          console.log("Auth state changed:", user ? "User authenticated" : "No user");
+          console.log("Auth: Auth state changed:", user ? `User authenticated: ${user.uid}` : "No user");
           setUserState(user);
           setLoadingState(false);
           
           // If user is authenticated, check/create their database record
           if (user) {
+            console.log("Auth: User authenticated, ensuring user exists in database");
             ensureUserExists(user);
           } else {
+            console.log("Auth: No user authenticated");
             setUserInitialized(false);
           }
         },
         (error: any) => {
-          console.error("Auth state change error:", error);
+          console.error("Auth: Auth state change error:", error);
           setLoadingState(false);
           setUserInitialized(false);
         }
       );
     } catch (error) {
-      console.error("Error initializing Firebase Auth:", error);
+      console.error("Auth: Error initializing Firebase Auth:", error);
       setLoadingState(false);
       setUserInitialized(false);
     }
     
     // Clean up subscription
-    return () => unsubscribe();
+    return () => {
+      console.log("Auth: Cleaning up auth state listener");
+      unsubscribe();
+    };
   }, []);
 
   // Ensure the user exists in Firestore
   const ensureUserExists = async (user: User) => {
     try {
+      console.log("Auth: Ensuring user exists in Firestore");
       const db = getFirebaseDb();
       const userRef = doc(db, 'users', user.uid);
+      
+      console.log("Auth: Fetching user document");
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        console.log("Creating new user record in Firestore");
+        console.log("Auth: Creating new user record in Firestore");
         // Create a new user record
         await setDoc(userRef, {
           email: user.email,
@@ -100,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           tokens: 100, // Starting tokens
           xp: 0,
         });
+        console.log("Auth: User record created successfully");
       } else {
+        console.log("Auth: User record exists, updating last login");
         // Update last login time
         await updateDoc(userRef, {
           lastLogin: new Date().toISOString(),
@@ -108,9 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // Mark user as initialized
+      console.log("Auth: User initialization complete");
       setUserInitialized(true);
     } catch (error) {
-      console.error("Error ensuring user exists:", error);
+      console.error("Auth: Error ensuring user exists:", error);
       // Still mark as initialized to prevent infinite loops
       setUserInitialized(true);
     }

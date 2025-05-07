@@ -96,7 +96,7 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
   const stats = getReviewStats();
 
   return (
-    <Card className="border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+    <Card className="border-slate-800 bg-slate-950 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-xl text-slate-100">Review Dashboard</CardTitle>
         <SyncCalendarButton subject={subject} onSync={onSync} />
@@ -104,10 +104,10 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
       <CardContent>
         <div className="grid gap-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:bg-slate-800/50">
+            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
               <CalendarIcon className="h-8 w-8 text-blue-500" />
               <div>
-                <p className="text-sm font-medium text-slate-400">Next Review</p>
+                <p className="text-sm font-medium text-slate-300">Next Review</p>
                 <p className="text-2xl font-bold text-slate-100">
                   {nextReviewDate 
                     ? dayjs(nextReviewDate).fromNow()
@@ -116,26 +116,26 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:bg-slate-800/50">
+            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
               <Clock className="h-8 w-8 text-emerald-500" />
               <div>
-                <p className="text-sm font-medium text-slate-400">Upcoming Reviews</p>
+                <p className="text-sm font-medium text-slate-300">Upcoming Reviews</p>
                 <p className="text-2xl font-bold text-slate-100">{upcomingReviews}</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:bg-slate-800/50">
+            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
               <Brain className="h-8 w-8 text-purple-500" />
               <div>
-                <p className="text-sm font-medium text-slate-400">Average Mastery</p>
+                <p className="text-sm font-medium text-slate-300">Average Mastery</p>
                 <p className="text-2xl font-bold text-slate-100">{stats.averageMastery}%</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/80 p-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-400">Review Progress</p>
+              <p className="text-sm font-medium text-slate-300">Review Progress</p>
               <div className="flex items-center space-x-2">
                 <p className="text-lg font-semibold text-slate-100">
                   {stats.completedReviews} of {stats.totalReviews} reviews completed

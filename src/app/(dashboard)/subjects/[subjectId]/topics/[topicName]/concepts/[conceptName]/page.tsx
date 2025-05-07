@@ -14,6 +14,7 @@ import { activityTypes, difficultyLevels, calculateSessionXP } from "@/lib/xpSys
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuizRecommendations } from '@/components/QuizRecommendations';
 import { ReviewScheduler } from '@/components/ReviewScheduler';
+import SessionForm from '@/components/SessionForm';
 
 interface PageProps {
   params: {
@@ -1187,257 +1188,50 @@ export default function ConceptPage({ params }: PageProps) {
       {/* Add Session Modal */}
       <Dialog open={showAddSession} onOpenChange={setShowAddSession}>
         <DialogContent 
-          className="bg-slate-900 border-slate-800"
+          className="bg-slate-900 border-slate-800 max-w-2xl w-full"
           aria-describedby="add-session-description"
         >
           <DialogHeader>
-            <DialogTitle>Log Study Session</DialogTitle>
+            <DialogTitle className="text-slate-100">Log Study Session</DialogTitle>
             <p id="add-session-description" className="text-sm text-slate-400">
               Record a new study session for this concept
             </p>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Activity Type
-                </label>
-                <select
-                  value={newSession.activityType}
-                  onChange={(e) => setNewSession({
-                    ...newSession,
-                    activityType: e.target.value as keyof typeof activityTypes
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                >
-                  {Object.entries(activityTypes).map(([key, value]) => (
-                    <option key={key} value={key}>{value.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Difficulty
-                </label>
-                <select
-                  value={newSession.difficulty}
-                  onChange={(e) => setNewSession({
-                    ...newSession,
-                    difficulty: e.target.value as keyof typeof difficultyLevels
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                >
-                  {Object.entries(difficultyLevels).map(([key, value]) => (
-                    <option key={key} value={key}>{value.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Duration (minutes)
-              </label>
-              <input
-                type="number"
-                value={newSession.duration}
-                onChange={(e) => setNewSession({
-                  ...newSession,
-                  duration: parseInt(e.target.value)
-                })}
-                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={newSession.notes}
-                onChange={(e) => setNewSession({
-                  ...newSession,
-                  notes: e.target.value
-                })}
-                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white h-24"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowAddSession(false)}
-                className="px-4 py-2 text-slate-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddSession}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Save Session
-              </button>
-            </div>
-          </div>
+          <SessionForm
+            subject={subject}
+            topic={topic}
+            onComplete={(sessionData) => {
+              handleAddSession();
+              setShowAddSession(false);
+            }}
+            onCancel={() => setShowAddSession(false)}
+          />
         </DialogContent>
       </Dialog>
 
       {/* Edit Session Modal */}
       <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
         <DialogContent 
-          className="bg-slate-900 border-slate-800"
+          className="bg-slate-900 border-slate-800 max-w-2xl w-full"
           aria-describedby="edit-session-description"
         >
           <DialogHeader>
-            <DialogTitle>Edit Study Session</DialogTitle>
+            <DialogTitle className="text-slate-100">Edit Study Session</DialogTitle>
             <p id="edit-session-description" className="text-sm text-slate-400">
               Update the details of your study session
             </p>
           </DialogHeader>
           {editingSession && (
-            <form 
-              className="space-y-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                console.log('Form submitted with data:', editingSession);
-                
-                const activityType = editingSession.activityType || 'study';
-                const difficulty = editingSession.difficulty || 'medium';
-                
-                if (!activityType || !difficulty) {
-                  toast({
-                    title: "Error",
-                    description: "Please ensure activity type and difficulty are selected",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-
-                try {
-                  await handleUpdateSession(editingSession.id, {
-                    activityType,
-                    difficulty,
-                    duration: editingSession.duration || 0,
-                    date: editingSession.date,
-                    notes: editingSession.notes || '',
-                  });
-                } catch (error) {
-                  console.error('Error in form submission:', error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to save changes. Please try again.",
-                    variant: "destructive",
-                  });
-                }
+            <SessionForm
+              subject={subject}
+              topic={topic}
+              initialData={editingSession}
+              onComplete={(sessionData) => {
+                handleUpdateSession(sessionData.id as string, sessionData);
+                setEditingSession(null);
               }}
-            >
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Activity Type
-                  </label>
-                  <select
-                    value={editingSession.activityType || 'study'}
-                    onChange={(e) => {
-                      const newType = e.target.value as keyof typeof activityTypes;
-                      setEditingSession({
-                        ...editingSession,
-                        activityType: newType
-                      });
-                    }}
-                    required
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                  >
-                    {Object.entries(activityTypes).map(([key, value]) => (
-                      <option key={key} value={key}>{value.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Difficulty
-                  </label>
-                  <select
-                    value={editingSession.difficulty || 'medium'}
-                    onChange={(e) => {
-                      const newDifficulty = e.target.value as keyof typeof difficultyLevels;
-                      setEditingSession({
-                        ...editingSession,
-                        difficulty: newDifficulty
-                      });
-                    }}
-                    required
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                  >
-                    {Object.entries(difficultyLevels).map(([key, value]) => (
-                      <option key={key} value={key}>{value.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={editingSession.duration || 0}
-                  onChange={(e) => setEditingSession({
-                    ...editingSession,
-                    duration: Math.max(0, parseInt(e.target.value) || 0)
-                  })}
-                  required
-                  min="0"
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={new Date(editingSession.date).toISOString().slice(0, 16)}
-                  onChange={(e) => setEditingSession({
-                    ...editingSession,
-                    date: new Date(e.target.value).toISOString()
-                  })}
-                  required
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Notes
-                </label>
-                <textarea
-                  value={editingSession.notes || ''}
-                  onChange={(e) => setEditingSession({
-                    ...editingSession,
-                    notes: e.target.value
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-white h-24"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingSession(null)}
-                  className="px-4 py-2 text-slate-300 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
+              onCancel={() => setEditingSession(null)}
+            />
           )}
         </DialogContent>
       </Dialog>

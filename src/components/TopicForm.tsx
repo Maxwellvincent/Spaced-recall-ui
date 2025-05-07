@@ -36,23 +36,25 @@ export function TopicForm({ initialData, onSubmit, isSubmitting = false }: Topic
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Topic Name</Label>
+        <Label htmlFor="name" className="text-slate-100">Topic Name</Label>
         <Input
           id="name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           required
           disabled={isSubmitting}
+          className="bg-slate-800 border-slate-700 text-slate-100"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description" className="text-slate-100">Description</Label>
         <Textarea
           id="description"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           disabled={isSubmitting}
+          className="bg-slate-800 border-slate-700 text-slate-100"
         />
       </div>
 
@@ -64,16 +66,21 @@ export function TopicForm({ initialData, onSubmit, isSubmitting = false }: Topic
             setFormData({ ...formData, isHabitBased: checked as boolean })
           }
           disabled={isSubmitting}
+          className="border-slate-600"
         />
         <Label 
           htmlFor="isHabitBased"
-          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          className="text-sm font-normal leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           This is a self-managed topic (e.g., Anki deck, daily practice)
         </Label>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button 
+        type="submit" 
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+        disabled={isSubmitting}
+      >
         {isSubmitting ? (
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
         ) : null}

@@ -2,6 +2,7 @@ interface FSRSState {
   stability: number;
   difficulty: number;
   retrievability: number;
+  lastReview: Date | string;
 }
 
 interface Scheduling {
@@ -128,8 +129,24 @@ export class SpacedRepetition {
     );
   }
 
-  private static calculateRetrievability(stability: number, now: Date, lastReview: Date): number {
-    const hoursSinceLastReview = (now.getTime() - lastReview.getTime()) / (1000 * 60 * 60);
+  private static calculateRetrievability(stability: number, now: Date, lastReview: Date | string): number {
+    // Ensure lastReview is a valid Date object
+    let lastReviewDate: Date;
+    
+    try {
+      lastReviewDate = lastReview instanceof Date ? lastReview : new Date(lastReview);
+      
+      // Check if the date is valid
+      if (isNaN(lastReviewDate.getTime())) {
+        console.warn('Invalid lastReview date, using current date instead');
+        lastReviewDate = new Date(); // Use current date as fallback
+      }
+    } catch (error) {
+      console.warn('Error parsing lastReview date, using current date instead', error);
+      lastReviewDate = new Date(); // Use current date as fallback
+    }
+    
+    const hoursSinceLastReview = (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60);
     return Math.exp(-hoursSinceLastReview / (stability * 24));
   }
 

@@ -1,32 +1,28 @@
+import { Inter } from "next/font/google";
+import "./globals.css";
+import ClientLayout from "@/components/ClientLayout";
+
 // Force dynamic rendering for the entire application
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/lib/auth";
-import { Toaster } from "sonner";
-
+// Load Inter font
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "Spaced Recall App",
   description: "A spaced repetition learning application",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

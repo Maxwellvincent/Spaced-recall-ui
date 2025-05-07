@@ -5,7 +5,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { getFirebaseDb } from '@/lib/firebase';
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { ThemedCard, ThemedProgress } from "./themed-components";
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -39,7 +39,7 @@ interface Subject {
   description: string;
   studyStyle: string;
   customStudyStyle?: string;
-  progress: {
+  progress?: {
     totalXP: number;
     averageMastery: number;
     completedTopics: number;
@@ -60,49 +60,142 @@ interface Subject {
 
 interface SubjectCardProps {
   subject: Subject;
+  theme: string;
   onClick?: () => void;
   className?: string;
 }
 
-export function SubjectCard({ subject, onClick, className }: SubjectCardProps) {
+// Helper to get rank name for a theme and level
+function getRankName(themeId: string, level: number) {
+  const theme = THEME_LEVELS[themeId] || THEME_LEVELS['classic'];
+  if (Array.isArray(theme)) {
+    const idx = Math.min(level, theme.length - 1);
+    return theme[idx] || '';
+  }
+  // For Naruto, use the first character's levels as fallback
+  if (typeof theme === 'object') {
+    const charLevels = Object.values(theme)[0];
+    const idx = Math.min(level, charLevels.length - 1);
+    return charLevels[idx] || '';
+  }
+  return '';
+}
+
+function getRankBadgeClass(themeId: string) {
+  switch (themeId) {
+    case 'naruto':
+      return 'bg-orange-900/60 border-orange-700 text-orange-200';
+    case 'dbz':
+      return 'bg-yellow-900/60 border-yellow-700 text-yellow-200';
+    case 'harry-potter':
+      return 'bg-purple-900/60 border-purple-700 text-purple-200';
+    default:
+      return 'bg-blue-900/60 border-blue-700 text-blue-200';
+  }
+}
+
+function getThemeTextColor(themeId: string) {
+  switch (themeId) {
+    case 'naruto': return 'text-orange-500';
+    case 'dbz': return 'text-yellow-500';
+    case 'harry-potter': return 'text-purple-500';
+    default: return 'text-blue-500';
+  }
+}
+
+export function SubjectCard({ subject, theme, onClick, className }: SubjectCardProps) {
   const { user } = useAuth();
   const [userTheme, setUserTheme] = useState("classic");
   const [userCharacter, setUserCharacter] = useState<string | null>(null);
 
+  // Log subject data for debugging
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      doc(db, 'users', user?.uid || 'no-user'),
-      (doc) => {
-        if (doc.exists()) {
-          const userData = doc.data() as UserPreferences;
-          setUserTheme(userData.theme || "classic");
-          setUserCharacter(userData.character || null);
-        }
-      },
-      (error) => {
-        console.error('Error fetching user preferences:', error);
-        setUserTheme("classic");
-        setUserCharacter(null);
-      }
-    );
+    console.log("SubjectCard: Rendering subject", subject);
+  }, [subject]);
 
-    return () => unsubscribe();
+  // Calculate average mastery if it's missing
+  const calculateAverageMastery = () => {
+    if (subject?.progress?.averageMastery !== undefined && subject.progress.averageMastery > 0) {
+      return subject.progress.averageMastery;
+    }
+    
+    if (!subject?.topics || subject.topics.length === 0) {
+      return 0;
+    }
+    
+    // Calculate from topics
+    let validTopics = 0;
+    const totalMastery = subject.topics.reduce((sum, topic) => {
+      if (topic && typeof topic.masteryLevel === 'number') {
+        validTopics++;
+        return sum + topic.masteryLevel;
+      }
+      return sum;
+    }, 0);
+    
+    return validTopics > 0 ? Math.round(totalMastery / validTopics) : 0;
+  };
+
+  // Ensure progress object has default values
+  const progress = {
+    totalXP: subject?.progress?.totalXP || subject?.xp || 0,
+    averageMastery: calculateAverageMastery(),
+    completedTopics: subject?.progress?.completedTopics || subject?.topics?.filter(t => (t && t.masteryLevel && t.masteryLevel >= 80))?.length || 0,
+    totalTopics: subject?.progress?.totalTopics || (subject?.topics?.length || 0),
+    lastStudied: subject?.progress?.lastStudied || '',
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    
+    try {
+      const unsubscribe = onSnapshot(
+        doc(db, 'users', user.uid),
+        (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            const userData = docSnapshot.data() as UserPreferences;
+            setUserTheme(userData.theme || "classic");
+            setUserCharacter(userData.character || null);
+          }
+        },
+        (error) => {
+          console.error('Error fetching user preferences:', error);
+          setUserTheme("classic");
+          setUserCharacter(null);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error setting up user preferences listener:', error);
+      setUserTheme("classic");
+      setUserCharacter(null);
+    }
   }, [user]);
 
   const getCurrentLevel = () => {
-    if (userTheme === "naruto" && userCharacter) {
-      const characterLevels = (THEME_LEVELS.naruto as Record<string, string[]>)[userCharacter];
-      if (characterLevels) {
-        const levelIndex = Math.min(Math.floor(subject.level / 10), characterLevels.length - 1);
-        return characterLevels[levelIndex];
+    try {
+      if (!subject) return "Beginner";
+      
+      const level = subject.level || Math.floor((subject.xp || 0) / 100);
+      
+      if (userTheme === "naruto" && userCharacter) {
+        const characterLevels = (THEME_LEVELS.naruto as Record<string, string[]>)[userCharacter];
+        if (characterLevels) {
+          const levelIndex = Math.min(Math.floor(level / 10), characterLevels.length - 1);
+          return characterLevels[levelIndex];
+        }
       }
+      
+      const levels = Array.isArray(THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS])
+        ? THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS] as string[]
+        : THEME_LEVELS.classic;
+      const levelIndex = Math.min(Math.floor(level / 10), levels.length - 1);
+      return levels[levelIndex];
+    } catch (error) {
+      console.error('Error getting current level:', error);
+      return "Beginner";
     }
-    
-    const levels = Array.isArray(THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS])
-      ? THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS] as string[]
-      : THEME_LEVELS.classic;
-    const levelIndex = Math.min(Math.floor(subject.level / 10), levels.length - 1);
-    return levels[levelIndex];
   };
 
   const getNextLevel = () => {
@@ -122,6 +215,26 @@ export function SubjectCard({ subject, onClick, className }: SubjectCardProps) {
   };
 
   const themeColor = THEME_COLORS[userTheme as keyof typeof THEME_COLORS] || THEME_COLORS.classic;
+  
+  // Safety check if subject is undefined
+  if (!subject) {
+    return null;
+  }
+
+  // Ensure mastery value is valid for display
+  const displayMastery = Math.max(0, Math.min(100, Math.round(progress.averageMastery)));
+
+  // Determine card variant based on mastery
+  const getCardVariant = () => {
+    if (displayMastery >= 80) return "mastery";
+    if (displayMastery >= 40) return "training";
+    return "normal";
+  };
+
+  // Get user theme and level for badge (fallback to classic/0)
+  const themeId = userTheme || 'classic';
+  const userLevel = subject?.level || 0;
+  const userRank = getRankName(themeId, userLevel);
 
   return (
     <Link
@@ -129,64 +242,47 @@ export function SubjectCard({ subject, onClick, className }: SubjectCardProps) {
       className={cn("block group", className)}
       onClick={onClick}
     >
-      <Card className="bg-slate-900/50 rounded-lg p-6 hover:bg-slate-800/50 transition-all duration-200 border border-slate-800 hover:border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
-            {subject.name}
-          </CardTitle>
-          <CardDescription className="text-slate-400 text-sm line-clamp-2">
-            {subject.description || 'No description available'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <div className={`bg-opacity-20 bg-${themeColor.split('-')[1]} p-1.5 rounded`}>
-              <Brain className={`h-4 w-4 ${themeColor}`} />
+      <ThemedCard
+        theme={theme}
+        title={subject.name || 'Unnamed Subject'}
+        description={subject.description || 'No description'}
+        variant={getCardVariant()}
+        icon={<BookOpen className="w-5 h-5" />}
+        className="h-full"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>Mastery:</span>
+              <span className="font-medium">{displayMastery}%</span>
             </div>
-            <div>
-              <p className="text-xs text-slate-500">Current Rank</p>
-              <p className={`text-sm font-medium ${themeColor}`}>{getCurrentLevel()}</p>
+            <ThemedProgress
+              theme={theme}
+              progress={displayMastery}
+              currentXP={subject.xp || 0}
+              neededXP={(subject.level + 1) * 100}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="flex items-center gap-1">
+              <Brain className="w-4 h-4 opacity-60" />
+              <span>{progress.totalTopics} topics</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 opacity-60" />
+              <span>{progress.totalXP} XP</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-500/20 p-1.5 rounded">
-              <Star className="h-4 w-4 text-blue-400" />
+          
+          {progress.lastStudied && (
+            <div className="text-xs opacity-60 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>Last studied: {new Date(progress.lastStudied).toLocaleDateString()}</span>
             </div>
-            <div>
-              <p className="text-xs text-slate-500">XP</p>
-              <p className="text-sm font-medium text-slate-200">{subject.xp || 0}</p>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="space-y-3">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-500">Average Mastery</span>
-              <span className="text-xs font-medium text-slate-400">
-                {Math.round(subject.progress.averageMastery)}%
-              </span>
-            </div>
-            <div className="w-full bg-slate-800 rounded-full h-1.5">
-              <div
-                className={`rounded-full h-1.5 transition-all duration-300 bg-${themeColor.split('-')[1]}-500`}
-                style={{ width: `${subject.progress.averageMastery}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 text-slate-500">
-              <Clock className="h-3 w-3" />
-              <span>
-                {Math.round((subject.totalStudyTime || 0) / 60)}h studied
-              </span>
-            </div>
-            <div className="text-slate-500">
-              {subject.progress.completedTopics}/{subject.progress.totalTopics} topics completed
-            </div>
-          </div>
-        </CardFooter>
-      </Card>
+          )}
+        </div>
+      </ThemedCard>
     </Link>
   );
 } 

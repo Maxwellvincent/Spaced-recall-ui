@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Force dynamic rendering for all pages
-  output: 'standalone',
+  // Use a basic configuration first to diagnose the issue
   distDir: '.next',
   
   // Skip type checking and linting during build
@@ -14,7 +13,7 @@ const nextConfig = {
   
   // Disable static optimization
   experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
+    serverExternalPackages: ['firebase-admin'],
   },
   
   // Set a timeout for static page generation
@@ -42,13 +41,14 @@ const nextConfig = {
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    NEXT_DISABLE_PRERENDER: '1',
-    NEXT_SKIP_INITIAL_SETUP: '1',
   },
   
-  // Force all pages to be server-side rendered
-  reactStrictMode: true,
-  swcMinify: true,
+  // React settings
+  reactStrictMode: false, // Temporarily disable strict mode to rule out issues
+  
+  // Adding this to ensure proper client module support
+  // This should help with the "clientModules" error
+  poweredByHeader: false,
 };
 
 module.exports = nextConfig; 

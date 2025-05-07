@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { getFirebaseDb } from "@/lib/firebase";
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
 import { format, isPast, isToday, isTomorrow, addDays, isAfter, isBefore } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Calendar, Brain, Filter, Search } from "lucide-react";
+import { Loader2, Calendar, Brain, Filter, Search, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SpacedRecallCard } from "@/components/SpacedRecallCard";
@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { SpacedRecallScheduler } from "@/components/SpacedRecallScheduler";
 import { Subject, Topic, Concept } from "@/types/study";
 import { toast } from "@/components/ui/use-toast";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface ReviewItem {
   id: string;
@@ -36,6 +38,15 @@ export default function SpacedRecallPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [reviewStats, setReviewStats] = useState({
+    total: 0,
+    overdue: 0,
+    today: 0,
+    upcoming: 0,
+    completed: 0,
+    completionRate: 0
+  });
+  const db = getFirebaseDb();
 
   // Fetch subjects and extract review items
   useEffect(() => {
@@ -44,47 +55,93 @@ export default function SpacedRecallPage() {
       
       try {
         setLoading(true);
+        console.log("Fetching review items for user:", user.uid);
         
         // Get all subjects for the user
         const subjectsRef = collection(db, "subjects");
         const q = query(subjectsRef, where("userId", "==", user.uid));
+        console.log("Executing Firestore query...");
         const querySnapshot = await getDocs(q);
+        console.log(`Found ${querySnapshot.size} subjects`);
         
         const items: ReviewItem[] = [];
         
         // Process each subject
         querySnapshot.forEach((doc) => {
+          console.log(`Processing subject: ${doc.id}`);
           const subject = doc.data() as Subject;
           
+          // Make sure topics array exists
+          if (!subject.topics || !Array.isArray(subject.topics)) {
+            console.warn(`Subject ${doc.id} has no topics or topics is not an array`);
+            return;
+          }
+          
           // Process topics
-          subject.topics?.forEach(topic => {
+          subject.topics.forEach(topic => {
+            if (!topic) {
+              console.warn(`Found null or undefined topic in subject ${doc.id}`);
+              return;
+            }
+            
             if (topic.nextReview) {
-              items.push({
-                id: `topic-${subject.id}-${topic.name}`,
-                type: 'topic',
-                subjectId: doc.id,
-                subjectName: subject.name,
-                item: topic,
-                dueDate: new Date(topic.nextReview)
-              });
+              try {
+                const dueDate = new Date(topic.nextReview);
+                if (!isNaN(dueDate.getTime())) {
+                  items.push({
+                    id: `topic-${subject.id}-${topic.name}`,
+                    type: 'topic',
+                    subjectId: doc.id,
+                    subjectName: subject.name,
+                    item: topic,
+                    dueDate
+                  });
+                } else {
+                  console.warn(`Invalid nextReview date for topic ${topic.name} in subject ${doc.id}`);
+                }
+              } catch (error) {
+                console.error(`Error processing topic ${topic.name}:`, error);
+              }
+            }
+            
+            // Make sure concepts array exists
+            if (!topic.concepts || !Array.isArray(topic.concepts)) {
+              console.warn(`Topic ${topic.name} in subject ${doc.id} has no concepts or concepts is not an array`);
+              return;
             }
             
             // Process concepts
-            topic.concepts?.forEach(concept => {
+            topic.concepts.forEach(concept => {
+              if (!concept) {
+                console.warn(`Found null or undefined concept in topic ${topic.name}`);
+                return;
+              }
+              
               if (concept.nextReview) {
-                items.push({
-                  id: `concept-${subject.id}-${topic.name}-${concept.name}`,
-                  type: 'concept',
-                  subjectId: doc.id,
-                  subjectName: subject.name,
-                  parentTopicName: topic.name,
-                  item: concept,
-                  dueDate: new Date(concept.nextReview)
-                });
+                try {
+                  const dueDate = new Date(concept.nextReview);
+                  if (!isNaN(dueDate.getTime())) {
+                    items.push({
+                      id: `concept-${subject.id}-${topic.name}-${concept.name}`,
+                      type: 'concept',
+                      subjectId: doc.id,
+                      subjectName: subject.name,
+                      parentTopicName: topic.name,
+                      item: concept,
+                      dueDate
+                    });
+                  } else {
+                    console.warn(`Invalid nextReview date for concept ${concept.name} in topic ${topic.name}`);
+                  }
+                } catch (error) {
+                  console.error(`Error processing concept ${concept.name}:`, error);
+                }
               }
             });
           });
         });
+        
+        console.log(`Total review items found: ${items.length}`);
         
         // Sort by due date (oldest first)
         const sortedItems = items.sort((a, b) => {
@@ -104,6 +161,7 @@ export default function SpacedRecallPage() {
         });
       } finally {
         setLoading(false);
+        console.log("Finished loading review items");
       }
     };
     
@@ -173,9 +231,9 @@ export default function SpacedRecallPage() {
     try {
       const { subjectId, item, type, parentTopicName } = selectedItem;
       
-      // Create a new review log
+      // Create a new review log with proper validation
       const newReviewLog = {
-        date: reviewLog?.date.toISOString() || new Date().toISOString(),
+        date: reviewLog?.date ? reviewLog.date.toISOString() : new Date().toISOString(),
         rating: reviewLog?.rating || 3,
         interval: reviewLog?.interval || 1,
         addedToCalendar: false
@@ -271,8 +329,57 @@ export default function SpacedRecallPage() {
     }
   };
   
+  // Calculate review statistics
+  useEffect(() => {
+    if (reviewItems.length > 0) {
+      const now = new Date();
+      const tomorrow = addDays(now, 1);
+      
+      const overdueCount = reviewItems.filter(item => 
+        item.dueDate && isPast(item.dueDate) && !isToday(item.dueDate)
+      ).length;
+      
+      const todayCount = reviewItems.filter(item => 
+        item.dueDate && isToday(item.dueDate)
+      ).length;
+      
+      const upcomingCount = reviewItems.filter(item => 
+        item.dueDate && 
+        (isTomorrow(item.dueDate) || 
+         (isAfter(item.dueDate, tomorrow) && isBefore(item.dueDate, addDays(now, 7))))
+      ).length;
+      
+      // Calculate completed items based on review logs
+      const completedCount = reviewItems.reduce((count, item) => {
+        const reviewLogs = item.item.reviewLogs || [];
+        const hasReviewedToday = reviewLogs.some(log => {
+          try {
+            const logDate = new Date(log.date);
+            return isToday(logDate);
+          } catch (e) {
+            return false;
+          }
+        });
+        return hasReviewedToday ? count + 1 : count;
+      }, 0);
+      
+      const totalDueToday = overdueCount + todayCount;
+      const completionRate = totalDueToday > 0 ? (completedCount / totalDueToday) * 100 : 0;
+      
+      setReviewStats({
+        total: reviewItems.length,
+        overdue: overdueCount,
+        today: todayCount,
+        upcoming: upcomingCount,
+        completed: completedCount,
+        completionRate
+      });
+    }
+  }, [reviewItems]);
+  
   // Loading state
   if (authLoading || loading) {
+    console.log("Showing loading state. Auth loading:", authLoading, "Data loading:", loading);
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -285,27 +392,103 @@ export default function SpacedRecallPage() {
   
   // Not logged in
   if (!user) {
+    console.log("No user found, redirecting to login");
     router.push("/login");
     return null;
   }
+  
+  console.log("Rendering spaced recall page with", filteredItems.length, "filtered items");
   
   return (
     <div className="container py-8 max-w-7xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Spaced Recall</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold mb-2 text-slate-100 flex items-center">
+            <Brain className="h-8 w-8 mr-3 text-blue-500" />
+            Spaced Recall
+          </h1>
+          <p className="text-slate-400">
             Review your topics and concepts based on optimal spacing intervals
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
-          <span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+          <Calendar className="h-5 w-5 text-blue-400" />
+          <span className="text-slate-200 font-medium">
             {format(new Date(), "EEEE, MMMM d")}
           </span>
         </div>
       </div>
+      
+      {/* New Progress Summary Component */}
+      {reviewItems.length > 0 && (
+        <div className="mb-8 bg-slate-800/40 rounded-xl border border-slate-700 p-5">
+          <h2 className="text-lg font-medium text-slate-100 mb-4">Review Progress</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700 flex items-center">
+              <div className="p-2 rounded-full bg-red-500/20 mr-3">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Overdue</p>
+                <p className="text-xl font-medium text-slate-100">{reviewStats.overdue}</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700 flex items-center">
+              <div className="p-2 rounded-full bg-blue-500/20 mr-3">
+                <Clock className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Today</p>
+                <p className="text-xl font-medium text-slate-100">{reviewStats.today}</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700 flex items-center">
+              <div className="p-2 rounded-full bg-green-500/20 mr-3">
+                <Calendar className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Upcoming</p>
+                <p className="text-xl font-medium text-slate-100">{reviewStats.upcoming}</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-800/70 rounded-lg p-4 border border-slate-700 flex items-center">
+              <div className="p-2 rounded-full bg-emerald-500/20 mr-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Completed</p>
+                <p className="text-xl font-medium text-slate-100">{reviewStats.completed}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm mb-1">
+              <span className="text-slate-300">Today's completion</span>
+              <span className="font-medium text-slate-200">{reviewStats.completionRate.toFixed(0)}%</span>
+            </div>
+            <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  reviewStats.completionRate < 30 ? "bg-red-500" :
+                  reviewStats.completionRate < 70 ? "bg-yellow-500" :
+                  "bg-green-500"
+                )}
+                style={{ width: `${reviewStats.completionRate}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-400 mt-2">
+              {reviewStats.completed} of {reviewStats.overdue + reviewStats.today} due reviews completed today
+            </p>
+          </div>
+        </div>
+      )}
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <Tabs 
@@ -314,19 +497,19 @@ export default function SpacedRecallPage() {
           onValueChange={(value) => handleFilterChange(value as any)}
           className="w-full md:w-auto"
         >
-          <TabsList className="grid grid-cols-4 w-full md:w-auto">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="overdue">Overdue</TabsTrigger>
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsList className="grid grid-cols-4 w-full md:w-auto bg-slate-800/50 border border-slate-700">
+            <TabsTrigger value="all" className="data-[state=active]:bg-slate-700 data-[state=active]:text-slate-100">All</TabsTrigger>
+            <TabsTrigger value="overdue" className="data-[state=active]:bg-red-900/60 data-[state=active]:text-slate-100">Overdue</TabsTrigger>
+            <TabsTrigger value="today" className="data-[state=active]:bg-blue-900/60 data-[state=active]:text-slate-100">Today</TabsTrigger>
+            <TabsTrigger value="upcoming" className="data-[state=active]:bg-green-900/60 data-[state=active]:text-slate-100">Upcoming</TabsTrigger>
           </TabsList>
         </Tabs>
         
         <div className="relative w-full md:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search reviews..."
-            className="pl-9"
+            className="pl-9 bg-slate-800/50 border-slate-700 focus:border-slate-600 text-slate-200"
             value={searchQuery}
             onChange={handleSearch}
           />
@@ -334,10 +517,10 @@ export default function SpacedRecallPage() {
       </div>
       
       {filteredItems.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg bg-muted/20">
-          <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-medium mb-2">No reviews scheduled</h3>
-          <p className="text-muted-foreground mb-4">
+        <div className="text-center py-12 border rounded-lg bg-slate-800/20 border-slate-700">
+          <Brain className="h-12 w-12 mx-auto text-slate-500 mb-4" />
+          <h3 className="text-xl font-medium mb-2 text-slate-300">No reviews scheduled</h3>
+          <p className="text-slate-400 mb-4">
             {filter !== 'all' 
               ? `No items found for the selected filter. Try changing your filter.` 
               : `You don't have any items scheduled for review yet.`}
@@ -345,34 +528,56 @@ export default function SpacedRecallPage() {
           <Button 
             variant="outline" 
             onClick={() => router.push('/subjects')}
+            className="bg-slate-800 border-slate-600 hover:bg-slate-700 text-slate-200"
           >
             Go to Subjects
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map(item => (
-            <SpacedRecallCard
-              key={item.id}
-              item={item.item}
-              subjectId={item.subjectId}
-              parentTopicName={item.parentTopicName}
-              onReviewClick={() => handleReviewClick(item)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mb-6 flex justify-between items-center">
+            <div className="text-slate-300 text-sm">
+              <span className="font-medium">{filteredItems.length}</span> {filteredItems.length === 1 ? 'item' : 'items'} found
+              {filter !== 'all' && <span className="ml-1">in <span className="font-medium">{filter}</span> filter</span>}
+            </div>
+            
+            {filter === 'overdue' && filteredItems.length > 0 && (
+              <div className="bg-red-900/20 px-3 py-1.5 rounded-md border border-red-900/50 text-sm text-red-400">
+                <span className="font-medium">{filteredItems.length}</span> overdue {filteredItems.length === 1 ? 'review' : 'reviews'} need attention
+              </div>
+            )}
+            
+            {filter === 'today' && filteredItems.length > 0 && (
+              <div className="bg-blue-900/20 px-3 py-1.5 rounded-md border border-blue-900/50 text-sm text-blue-400">
+                <span className="font-medium">{filteredItems.length}</span> {filteredItems.length === 1 ? 'review' : 'reviews'} scheduled for today
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredItems.map(item => (
+              <SpacedRecallCard
+                key={item.id}
+                item={item.item}
+                subjectId={item.subjectId}
+                parentTopicName={item.parentTopicName}
+                onReviewClick={() => handleReviewClick(item)}
+              />
+            ))}
+          </div>
+        </>
       )}
       
       {/* Review Dialog */}
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900 border-slate-700">
           <DialogHeader>
-            <DialogTitle>Review: {selectedItem?.item.name}</DialogTitle>
+            <DialogTitle className="text-slate-100">Review: {selectedItem?.item?.name || ''}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div className="text-sm text-muted-foreground mb-2">
-              <p>Rate how well you recalled this {selectedItem?.type} and schedule your next review.</p>
+            <div className="text-sm text-slate-400 mb-2">
+              <p>Rate how well you recalled this {selectedItem?.type || ''} and schedule your next review.</p>
             </div>
             
             {selectedItem && (

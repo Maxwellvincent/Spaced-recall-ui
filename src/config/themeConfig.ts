@@ -40,18 +40,18 @@ export const themeConfig: ThemeConfigMap = {
     borderClass: "border-yellow-500",
     ranks: ["Earthling", "Saiyan", "Super Saiyan", "Super Saiyan 2", "Super Saiyan 3", "Super Saiyan God"],
     avatars: [
-      { level: 1, name: "Kid Goku", image: "/avatars/dbz/kid-goku.png", description: "Starting your journey" },
-      { level: 5, name: "Goku", image: "/avatars/dbz/goku.png", description: "Mastering the basics" },
+      { level: 1, name: "Kid Goku", image: "/avatars/dbz/kid-goku.png", description: "Starting your journey as an Earthling" },
+      { level: 5, name: "Goku", image: "/avatars/dbz/goku.png", description: "Training as a Saiyan warrior" },
       { level: 10, name: "Super Saiyan", image: "/avatars/dbz/ssj.png", description: "Breaking your limits" },
       { level: 20, name: "Ultra Instinct", image: "/avatars/dbz/ui.png", description: "Achieved mastery" }
     ],
     xpTiers: {
       0: { name: "Earthling", xpRequired: 0 },
-      100: { name: "Saiyan", xpRequired: 100 },
-      500: { name: "Super Saiyan", xpRequired: 500 },
-      1000: { name: "Super Saiyan 2", xpRequired: 1000 },
-      2000: { name: "Super Saiyan 3", xpRequired: 2000 },
-      5000: { name: "Super Saiyan God", xpRequired: 5000 }
+      5000: { name: "Saiyan", xpRequired: 5000 },
+      25000: { name: "Super Saiyan", xpRequired: 25000 },
+      100000: { name: "Super Saiyan 2", xpRequired: 100000 },
+      250000: { name: "Super Saiyan 3", xpRequired: 250000 },
+      1000000: { name: "Super Saiyan God", xpRequired: 1000000 }
     }
   },
   naruto: {

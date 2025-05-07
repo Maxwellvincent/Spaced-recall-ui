@@ -84,11 +84,26 @@ export const AVAILABLE_REWARDS: Reward[] = [
 
 // Base XP thresholds that can be modified by theme
 export const baseXPThresholds = [
-  0, 50, 100, 150, 200,     // Level 1–5
-  300, 400, 500, 600, 700,  // Level 6–10
-  900, 1100, 1300, 1500,    // Level 11–14
-  1800, 2200, 2700, 3300,   // Level 15–18
-  4000, 5000, 6200          // Level 19–21+
+  0,        // Level 1
+  1000,     // Level 2 - Like reaching Saiyan in DBZ
+  2500,     // Level 3 - Significant milestone
+  5000,     // Level 4
+  10000,    // Level 5 - Major transformation (like Super Saiyan)
+  15000,    // Level 6
+  25000,    // Level 7
+  40000,    // Level 8
+  60000,    // Level 9
+  85000,    // Level 10 - Master level (like SSJ2)
+  115000,   // Level 11
+  150000,   // Level 12
+  200000,   // Level 13
+  275000,   // Level 14
+  350000,   // Level 15 - Elite level (like SSJ3)
+  450000,   // Level 16
+  600000,   // Level 17
+  800000,   // Level 18
+  1000000,  // Level 19
+  1500000   // Level 20 - Legendary status (like SSG)
 ];
 
 // Theme configurations
@@ -100,6 +115,7 @@ export interface ThemeConfig {
   customFeatures?: {
     [key: string]: any;
   };
+  xpTiers: { [key: string]: { name: string; xpRequired: number } };
 }
 
 export interface AvatarLevel {
@@ -121,7 +137,8 @@ export const defaultThemes: { [key: string]: ThemeConfig } = {
       { level: 10, name: "Mentor", image: "/avatars/neutral/mentor.png", description: "Sharing knowledge with others" },
       { level: 15, name: "Master", image: "/avatars/neutral/master.png", description: "Deep understanding of subjects" },
       { level: 20, name: "Grandmaster", image: "/avatars/neutral/grandmaster.png", description: "Expert in multiple fields" }
-    ]
+    ],
+    xpTiers: {}
   },
   fantasy: {
     name: "Fantasy",
@@ -133,7 +150,8 @@ export const defaultThemes: { [key: string]: ThemeConfig } = {
       { level: 10, name: "Archmage", image: "/avatars/fantasy/archmage.png", description: "Commanding powerful magic" },
       { level: 15, name: "Wizard", image: "/avatars/fantasy/wizard.png", description: "Creating new spells" },
       { level: 20, name: "Sorcerer Supreme", image: "/avatars/fantasy/supreme.png", description: "Master of all magical arts" }
-    ]
+    ],
+    xpTiers: {}
   },
   scifi: {
     name: "Sci-Fi",
@@ -145,31 +163,32 @@ export const defaultThemes: { [key: string]: ThemeConfig } = {
       { level: 10, name: "Captain", image: "/avatars/scifi/captain.png", description: "Leading space missions" },
       { level: 15, name: "Admiral", image: "/avatars/scifi/admiral.png", description: "Fleet commander" },
       { level: 20, name: "Fleet Admiral", image: "/avatars/scifi/fleet-admiral.png", description: "Supreme commander of all fleets" }
-    ]
+    ],
+    xpTiers: {}
   }
 };
 
 // Activity types and their base XP multipliers
 export const activityTypes = {
-  backtesting: { name: 'Backtesting', baseXp: 50, factors: ['complexity', 'duration'] },
-  paperTrading: { name: 'Paper Trading', baseXp: 40, factors: ['risk', 'duration'] },
-  technicalAnalysis: { name: 'Technical Analysis', baseXp: 45, factors: ['depth', 'duration'] },
-  fundamentalAnalysis: { name: 'Fundamental Analysis', baseXp: 45, factors: ['depth', 'duration'] },
-  riskManagement: { name: 'Risk Management', baseXp: 35, factors: ['complexity', 'duration'] },
-  tradingPsychology: { name: 'Trading Psychology', baseXp: 30, factors: ['reflection', 'duration'] },
-  marketAnalysis: { name: 'Market Analysis', baseXp: 40, factors: ['depth', 'duration'] },
-  strategyDevelopment: { name: 'Strategy Development', baseXp: 50, factors: ['complexity', 'duration'] },
-  tradeJournaling: { name: 'Trade Journaling', baseXp: 25, factors: ['reflection', 'duration'] },
-  study: { name: 'Study Session', baseXp: 30, factors: ['difficulty', 'duration'] },
-  review: { name: 'Review Session', baseXp: 25, factors: ['difficulty', 'duration'] },
-  practice: { name: 'Practice Session', baseXp: 35, factors: ['difficulty', 'duration'] },
+  backtesting: { name: 'Backtesting', baseXp: 150, factors: ['complexity', 'duration'] },
+  paperTrading: { name: 'Paper Trading', baseXp: 120, factors: ['risk', 'duration'] },
+  technicalAnalysis: { name: 'Technical Analysis', baseXp: 135, factors: ['depth', 'duration'] },
+  fundamentalAnalysis: { name: 'Fundamental Analysis', baseXp: 135, factors: ['depth', 'duration'] },
+  riskManagement: { name: 'Risk Management', baseXp: 105, factors: ['complexity', 'duration'] },
+  tradingPsychology: { name: 'Trading Psychology', baseXp: 90, factors: ['reflection', 'duration'] },
+  marketAnalysis: { name: 'Market Analysis', baseXp: 120, factors: ['depth', 'duration'] },
+  strategyDevelopment: { name: 'Strategy Development', baseXp: 150, factors: ['complexity', 'duration'] },
+  tradeJournaling: { name: 'Trade Journaling', baseXp: 75, factors: ['reflection', 'duration'] },
+  study: { name: 'Study Session', baseXp: 100, factors: ['difficulty', 'duration'] },
+  review: { name: 'Review Session', baseXp: 85, factors: ['difficulty', 'duration'] },
+  practice: { name: 'Practice Session', baseXp: 115, factors: ['difficulty', 'duration'] },
 };
 
 export const difficultyLevels = {
   easy: { name: 'Easy', multiplier: 0.8 },
-  medium: { name: 'Medium', multiplier: 1.0 },
-  hard: { name: 'Hard', multiplier: 1.3 },
-  expert: { name: 'Expert', multiplier: 1.6 },
+  medium: { name: 'Medium', multiplier: 1.2 },
+  hard: { name: 'Hard', multiplier: 1.6 },
+  expert: { name: 'Expert', multiplier: 2.0 },
 };
 
 export const calculateSessionXP = ({
@@ -183,37 +202,81 @@ export const calculateSessionXP = ({
   duration: number;
   currentLevel?: number;
 }): { xp: number; masteryGained: number } => {
-  const activity = activityTypes[activityType];
-  const difficultyMultiplier = difficultyLevels[difficulty].multiplier;
-  
-  // Base XP calculation
-  let baseXp = activity.baseXp;
-  
-  // Duration factor (XP per 30 minutes, with diminishing returns)
-  const durationMultiplier = Math.pow(duration / 30, 0.8); // Diminishing returns for longer sessions
-  
-  // Level bonus (small bonus for higher levels to encourage progression)
-  const levelMultiplier = 1 + (Math.log10(currentLevel) * 0.1);
-  
-  // Calculate final XP
-  const totalXp = Math.round(
-    baseXp * difficultyMultiplier * durationMultiplier * levelMultiplier
-  );
-  
-  // Calculate mastery gained (based on difficulty and duration)
-  // More difficult sessions give more mastery, but with diminishing returns
-  const masteryGained = Math.min(
-    20, // Cap mastery gain at 20% per session
-    Math.round(
-      (difficultyMultiplier * Math.sqrt(duration / 30) * 5) // Base mastery gain
-    )
-  );
-  
-  return {
-    xp: totalXp,
-    masteryGained,
-  };
+  try {
+    // Validate inputs
+    if (!activityType || !activityTypes[activityType]) {
+      console.warn(`Invalid activity type: ${activityType}`);
+      return { xp: 0, masteryGained: 0 };
+    }
+    
+    if (!difficulty || !difficultyLevels[difficulty]) {
+      console.warn(`Invalid difficulty level: ${difficulty}`);
+      return { xp: 0, masteryGained: 0 };
+    }
+    
+    // Ensure duration is a positive number
+    const validDuration = Math.max(1, Number(duration) || 0);
+    if (validDuration <= 0 || !isFinite(validDuration)) {
+      console.warn(`Invalid duration: ${duration}`);
+      return { xp: 0, masteryGained: 0 };
+    }
+    
+    // Ensure currentLevel is valid
+    const validLevel = Math.max(1, Number(currentLevel) || 1);
+    
+    const activity = activityTypes[activityType];
+    const difficultyMultiplier = difficultyLevels[difficulty].multiplier;
+    
+    // Base XP calculation
+    let baseXp = activity.baseXp;
+    
+    // Duration factor (XP per 30 minutes, with increasing returns for longer sessions)
+    // This encourages longer, focused study sessions
+    const durationMultiplier = Math.pow(validDuration / 30, 1.1); // Increased from 0.8 to 1.1 for better scaling
+    
+    // Level bonus (increased bonus for higher levels to maintain motivation)
+    const levelMultiplier = 1 + (Math.log10(validLevel + 1) * 0.2); // Increased from 0.1 to 0.2
+    
+    // Streak bonus (if available)
+    const streakBonus = 1.0; // This could be modified based on user's study streak
+    
+    // Calculate final XP with all multipliers
+    const calculatedXp = baseXp * difficultyMultiplier * durationMultiplier * levelMultiplier * streakBonus;
+    const totalXp = isFinite(calculatedXp) ? Math.round(calculatedXp) : 0;
+    
+    // Calculate mastery gained (based on difficulty and duration)
+    const calculatedMastery = (difficultyMultiplier * Math.sqrt(validDuration / 30) * 5);
+    const masteryGained = isFinite(calculatedMastery) 
+      ? Math.min(25, Math.round(calculatedMastery)) // Increased cap from 20% to 25% per session
+      : 0;
+    
+    return {
+      xp: totalXp,
+      masteryGained,
+    };
+  } catch (error) {
+    console.error('Error calculating XP:', error);
+    return { xp: 0, masteryGained: 0 };
+  }
 };
+
+// Get rank based on XP and theme
+export function getRankFromXP(xp: number, theme: ThemeConfig): string {
+  // Get the XP tiers for the theme
+  const tiers = Object.entries(theme.xpTiers)
+    .sort(([a], [b]) => Number(a) - Number(b));
+  
+  // Find the highest tier that the user's XP exceeds
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    const [, tier] = tiers[i];
+    if (xp >= tier.xpRequired) {
+      return tier.name;
+    }
+  }
+  
+  // If no tier found (shouldn't happen due to 0 XP tier), return first tier
+  return tiers[0][1].name;
+}
 
 // Get current level based on XP
 export function getLevelFromXP(xp: number, theme: ThemeConfig): number {

@@ -11,13 +11,13 @@ interface DashboardCardProps {
 
 export function DashboardCard({ title, count, description, href, icon: Icon }: DashboardCardProps) {
   const CardContent = () => (
-    <div className="bg-slate-800 p-6 rounded-lg shadow-lg hover:bg-slate-700 transition">
+    <div className="bg-slate-950 border border-slate-800 p-6 rounded-lg shadow-lg hover:bg-slate-900 transition">
       <div className="flex items-center gap-3 mb-4">
         {Icon && <Icon className="h-6 w-6 text-blue-400" />}
-        <h2 className="text-xl font-semibold text-white">{title}</h2>
+        <h2 className="text-xl font-semibold text-slate-100">{title}</h2>
       </div>
-      <div className="text-3xl font-bold text-white mb-2">{count}</div>
-      <p className="text-slate-400">{description}</p>
+      <div className="text-3xl font-bold text-slate-100 mb-2">{count}</div>
+      <p className="text-slate-300">{description}</p>
     </div>
   );
 
