@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
-import { Loader2, Save, User, Palette, Coins, Star, Trophy, Clock, BarChart } from "lucide-react";
+import { Loader2, Save, User, Palette, Coins, Star, Trophy, Clock, BarChart, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
@@ -19,6 +19,9 @@ import {
 import { useTheme } from '@/contexts/theme-context';
 import { themeConfig } from "@/config/themeConfig";
 import { getLevelFromXP, getProgressToNextLevel, getRankFromXP, activityTypes } from "@/lib/xpSystem";
+import { LoginStreakCard } from "@/components/ui/login-streak-card";
+import { toast } from "sonner";
+import { useLoginStreak } from "@/hooks/useLoginStreak";
 
 interface UserPreferences {
   theme: string;
@@ -103,8 +106,14 @@ export default function ProfilePage() {
   });
   const [currentLevel, setCurrentLevel] = useState(1);
   const [levelProgress, setLevelProgress] = useState({ currentXP: 0, neededXP: 100, percent: 0 });
-  const [userStreak, setUserStreak] = useState(0);
-  const [highestStreak, setHighestStreak] = useState(0);
+  
+  // Use the login streak hook
+  const { 
+    streak: userStreak, 
+    highestStreak, 
+    loading: streakLoading, 
+    refreshStreak 
+  } = useLoginStreak();
 
   useEffect(() => {
     if (!user) {
@@ -119,14 +128,18 @@ export default function ProfilePage() {
         
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          console.log("Profile: User data loaded:", {
+            lastLogin: userData.lastLogin
+          });
+          
           setPreferences(userData);
           setSelectedTheme(userData.theme || "classic");
           setInitialTheme(userData.theme || "classic");
           setSelectedCharacter(userData.character || null);
           setDisplayName(userData.displayName || "");
           setTokens(userData.tokens ?? 0);
-          setUserStreak(userData.currentStreak ?? 0);
-          setHighestStreak(userData.highestStreak ?? 0);
+          
+          // Note: Streak values are now handled by useLoginStreak hook
 
           // Fetch subjects to calculate XP
           const subjectsRef = collection(db, 'subjects');
@@ -354,12 +367,30 @@ export default function ProfilePage() {
         </div>
         
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Study Streak</h2>
-          <ThemedStreak
-            theme={selectedTheme}
-            streak={userStreak}
-            highestStreak={highestStreak}
-          />
+          <h2 className="text-2xl font-semibold mb-4">Login Streak</h2>
+          <div className="relative">
+            <LoginStreakCard
+              theme={selectedTheme}
+              streak={userStreak}
+              highestStreak={highestStreak}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute top-2 right-2"
+              onClick={async () => {
+                try {
+                  await refreshStreak();
+                  toast.success("Login streak refreshed!");
+                } catch (error) {
+                  console.error("Error refreshing streak:", error);
+                  toast.error("Failed to refresh streak");
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+          </div>
         </div>
       </div>
       

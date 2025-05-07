@@ -8,6 +8,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { collection, addDoc, doc, getDoc, updateDoc, query, where, getDocs } from "firebase/firestore";
 import { Subject, Topic } from "@/types/study";
 import { Loader2, Scroll, Flame, Brain, Star } from "lucide-react";
+import { useTheme } from "@/contexts/theme-context";
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -51,6 +52,7 @@ const JUTSU_DESCRIPTIONS = {
 export default function StudyLogger() {
   const router = useRouter();
   const [user] = useAuthState(auth);
+  const { theme } = useTheme();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedTopic, setSelectedTopic] = useState("");
   const [duration, setDuration] = useState(30);
@@ -61,7 +63,6 @@ export default function StudyLogger() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [userTheme, setUserTheme] = useState<string>("classic");
   const [userCharacter, setUserCharacter] = useState<string | null>(null);
   const [jutsuMastery, setJutsuMastery] = useState({
     chakraControl: 50,
@@ -106,7 +107,6 @@ export default function StudyLogger() {
         
         if (userDoc.exists()) {
           const userData = userDoc.data() as UserPreferences;
-          setUserTheme(userData.theme || "classic");
           setUserCharacter(userData.character || null);
         }
       } catch (err) {
@@ -149,7 +149,7 @@ export default function StudyLogger() {
         timestamp: new Date(),
         cardsReviewed,
         newCards,
-        ...(userTheme === "naruto" && {
+        ...(theme.toLowerCase() === "naruto" && {
           jutsuMastery: {
             chakraControl: jutsuMastery.chakraControl,
             technique: jutsuMastery.technique,
@@ -345,10 +345,16 @@ export default function StudyLogger() {
   }
 
   const getThemeTitle = () => {
-    if (userTheme === "naruto") {
-      return "Log Training Session";
+    switch (theme.toLowerCase()) {
+      case "naruto":
+        return "Jutsu Training Log";
+      case "dbz":
+        return "Power Level Training";
+      case "hogwarts":
+        return "Magical Studies Journal";
+      default:
+        return "Study Session Logger";
     }
-    return "Log Study Session";
   };
 
   // Find the selected subject and topic objects
@@ -503,7 +509,7 @@ export default function StudyLogger() {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              {userTheme === "naruto" ? "Training Duration (minutes)" : "Duration (minutes)"}
+              {theme.toLowerCase() === "naruto" ? "Training Duration (minutes)" : "Duration (minutes)"}
             </label>
             <input
               type="number"
@@ -515,7 +521,7 @@ export default function StudyLogger() {
             />
           </div>
 
-          {userTheme === "naruto" ? (
+          {theme.toLowerCase() === "naruto" ? (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-slate-200">Jutsu Mastery Assessment</h3>
               {Object.entries(jutsuMastery).map(([key, value]) => (
@@ -564,14 +570,14 @@ export default function StudyLogger() {
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              {userTheme === "naruto" ? "Training Notes" : "Notes"}
+              {theme.toLowerCase() === "naruto" ? "Training Notes" : "Notes"}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
               rows={3}
-              placeholder={userTheme === "naruto" ? "Record your training observations and insights..." : "Add your study notes..."}
+              placeholder={theme.toLowerCase() === "naruto" ? "Record your training observations and insights..." : "Add your study notes..."}
             />
           </div>
 
@@ -608,12 +614,12 @@ export default function StudyLogger() {
           <button
             type="submit"
             className={`w-full px-4 py-2 rounded-lg flex items-center justify-center gap-2 ${
-              userTheme === "naruto"
+              theme.toLowerCase() === "naruto"
                 ? "bg-orange-600 hover:bg-orange-700"
                 : "bg-blue-600 hover:bg-blue-700"
             } text-white transition-colors`}
           >
-            {userTheme === "naruto" ? (
+            {theme.toLowerCase() === "naruto" ? (
               <>
                 <Flame className="h-5 w-5" />
                 Log Training Session

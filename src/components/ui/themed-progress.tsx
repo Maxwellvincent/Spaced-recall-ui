@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 interface ThemedProgressProps {
   theme: string;
   progress: number;
-  currentXP: number;
-  neededXP: number;
+  currentXP?: number;
+  neededXP?: number;
   className?: string;
 }
 
@@ -78,12 +78,39 @@ export function ThemedProgress({
   neededXP,
   className
 }: ThemedProgressProps) {
-  const styles = themeStyles[theme as keyof typeof themeStyles] || themeStyles.classic;
-  const effects = powerLevelEffects[theme as keyof typeof powerLevelEffects] || powerLevelEffects.classic;
+  const safeTheme = theme?.toLowerCase() || 'classic';
+  const styles = themeStyles[safeTheme as keyof typeof themeStyles] || themeStyles.classic;
+  const effects = powerLevelEffects[safeTheme as keyof typeof powerLevelEffects] || powerLevelEffects.classic;
   
-  // Find current power level effect
-  const currentEffect = [...effects].reverse().find(effect => currentXP >= effect.threshold);
+  // Ensure progress is a valid number between 0-100
+  const safeProgress = typeof progress === 'number' ? Math.min(100, Math.max(0, progress)) : 0;
+  
+  // Find current power level effect if XP values are provided
+  const currentEffect = currentXP !== undefined 
+    ? [...effects].reverse().find(effect => (currentXP || 0) >= effect.threshold)
+    : null;
 
+  // Simplified version when no XP values are provided
+  if (currentXP === undefined || neededXP === undefined) {
+    return (
+      <div className={cn("w-full", className)}>
+        <div className={cn("h-2 w-full rounded-full overflow-hidden", styles.container, styles.aura)}>
+          <motion.div
+            className={cn("h-full rounded-full", styles.bar)}
+            initial={{ width: 0 }}
+            animate={{ width: `${safeProgress}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure we have valid numbers for XP display
+  const safeCurrentXP = currentXP || 0;
+  const safeNeededXP = neededXP || 100;
+
+  // Full version with XP display
   return (
     <div className={cn("w-full space-y-2", className)}>
       <div className="flex justify-between items-center">
@@ -91,7 +118,7 @@ export function ThemedProgress({
           {currentEffect?.effect}
         </div>
         <div className={cn("text-sm font-medium", styles.text)}>
-          {currentXP.toLocaleString()} / {neededXP.toLocaleString()} XP
+          {safeCurrentXP.toLocaleString()} / {safeNeededXP.toLocaleString()} XP
         </div>
       </div>
       
@@ -99,7 +126,7 @@ export function ThemedProgress({
         <motion.div
           className={cn("h-full rounded-full", styles.bar)}
           initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
+          animate={{ width: `${safeProgress}%` }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </div>

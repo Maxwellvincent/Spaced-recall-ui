@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { AISubjectHelperProps, SubjectStructure } from "@/types/subject";
 
 export function AISubjectHelper({ onStructureGenerated, onError }: AISubjectHelperProps) {

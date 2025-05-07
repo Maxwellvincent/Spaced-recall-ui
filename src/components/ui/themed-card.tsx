@@ -9,6 +9,7 @@ interface ThemedCardProps {
   children?: React.ReactNode;
   variant?: "normal" | "training" | "mastery" | "quiz";
   className?: string;
+  onClick?: () => void;
 }
 
 const themeStyles = {
@@ -152,7 +153,8 @@ export function ThemedCard({
   icon,
   children,
   variant = "normal",
-  className
+  className,
+  onClick
 }: ThemedCardProps) {
   const themeStyle = themeStyles[theme as keyof typeof themeStyles] || themeStyles.classic;
   const styles = themeStyle[variant as keyof typeof themeStyle] || themeStyle.normal;
@@ -161,10 +163,12 @@ export function ThemedCard({
   
   return (
     <motion.div
-      className={cn("rounded-lg p-4 overflow-hidden", styles.container, className)}
+      className={cn("rounded-lg p-4 overflow-hidden", styles.container, className, 
+        onClick ? "cursor-pointer" : "")}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
+      onClick={onClick}
     >
       <div className="flex items-start gap-3 mb-3">
         {icon && (

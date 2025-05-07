@@ -15,6 +15,8 @@ import { SubjectCard } from "@/components/ui/subject-card";
 import { ThemedHeader, ThemedProgress, ThemedAvatar, ThemedCard } from "@/components/ui/themed-components";
 import { getLevelFromXP, getProgressToNextLevel, getRankFromXP } from '@/lib/xpSystem';
 import { themeConfig } from '@/config/themeConfig';
+import { LoginStreakCard } from "@/components/ui/login-streak-card";
+import { useLoginStreak } from "@/hooks/useLoginStreak";
 
 // This is a completely static version of the dashboard page
 // It doesn't use any client components or Firebase during build time
@@ -60,6 +62,9 @@ export default function DashboardPage() {
   const [userRank, setUserRank] = useState('');
   const [userXP, setUserXP] = useState(0);
   const [levelProgress, setLevelProgress] = useState({ currentXP: 0, neededXP: 100, percent: 0 });
+  
+  // Use the login streak hook
+  const { streak: loginStreak, highestStreak: highestLoginStreak, loading: streakLoading } = useLoginStreak();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -260,6 +265,8 @@ export default function DashboardPage() {
           theme = userData.theme || 'classic';
           userTotalXP = userData.totalXP || 0;
           setUserXP(userTotalXP);
+          
+          // Note: Streak values are now handled by useLoginStreak hook
         }
         
         // Calculate level and progress based on theme
@@ -408,6 +415,15 @@ export default function DashboardPage() {
             </div>
           </ThemedCard>
         </div>
+        
+        {/* Login Streak Card - Compact Variant */}
+        <LoginStreakCard 
+          streak={loginStreak} 
+          highestStreak={highestLoginStreak} 
+          theme={theme}
+          variant="compact"
+          className="mb-6"
+        />
       </div>
 
       {/* Recent Subjects with Themed Header */}

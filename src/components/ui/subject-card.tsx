@@ -88,6 +88,7 @@ function getRankBadgeClass(themeId: string) {
     case 'dbz':
       return 'bg-yellow-900/60 border-yellow-700 text-yellow-200';
     case 'harry-potter':
+    case 'hogwarts':
       return 'bg-purple-900/60 border-purple-700 text-purple-200';
     default:
       return 'bg-blue-900/60 border-blue-700 text-blue-200';
@@ -98,20 +99,20 @@ function getThemeTextColor(themeId: string) {
   switch (themeId) {
     case 'naruto': return 'text-orange-500';
     case 'dbz': return 'text-yellow-500';
-    case 'harry-potter': return 'text-purple-500';
+    case 'harry-potter':
+    case 'hogwarts': return 'text-purple-500';
     default: return 'text-blue-500';
   }
 }
 
-export function SubjectCard({ subject, theme, onClick, className }: SubjectCardProps) {
+export function SubjectCard({ subject, theme = "classic", onClick, className }: SubjectCardProps) {
   const { user } = useAuth();
-  const [userTheme, setUserTheme] = useState("classic");
   const [userCharacter, setUserCharacter] = useState<string | null>(null);
 
   // Log subject data for debugging
   useEffect(() => {
-    console.log("SubjectCard: Rendering subject", subject);
-  }, [subject]);
+    console.log("SubjectCard: Rendering subject with theme", subject, theme);
+  }, [subject, theme]);
 
   // Calculate average mastery if it's missing
   const calculateAverageMastery = () => {
@@ -148,29 +149,21 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
   useEffect(() => {
     if (!user) return;
     
-    try {
-      const unsubscribe = onSnapshot(
-        doc(db, 'users', user.uid),
-        (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            const userData = docSnapshot.data() as UserPreferences;
-            setUserTheme(userData.theme || "classic");
-            setUserCharacter(userData.character || null);
-          }
-        },
-        (error) => {
-          console.error('Error fetching user preferences:', error);
-          setUserTheme("classic");
-          setUserCharacter(null);
+    // Only fetch character preference, not theme
+    const fetchUserCharacter = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as UserPreferences;
+          setUserCharacter(userData.character || null);
         }
-      );
-
-      return () => unsubscribe();
-    } catch (error) {
-      console.error('Error setting up user preferences listener:', error);
-      setUserTheme("classic");
-      setUserCharacter(null);
-    }
+      } catch (error) {
+        console.error('Error fetching user character:', error);
+        setUserCharacter(null);
+      }
+    };
+    
+    fetchUserCharacter();
   }, [user]);
 
   const getCurrentLevel = () => {
@@ -178,8 +171,9 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
       if (!subject) return "Beginner";
       
       const level = subject.level || Math.floor((subject.xp || 0) / 100);
+      const themeId = theme?.toLowerCase() || "classic";
       
-      if (userTheme === "naruto" && userCharacter) {
+      if (themeId === "naruto" && userCharacter) {
         const characterLevels = (THEME_LEVELS.naruto as Record<string, string[]>)[userCharacter];
         if (characterLevels) {
           const levelIndex = Math.min(Math.floor(level / 10), characterLevels.length - 1);
@@ -187,8 +181,11 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
         }
       }
       
-      const levels = Array.isArray(THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS])
-        ? THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS] as string[]
+      // Handle hogwarts as harry-potter for backward compatibility
+      const lookupTheme = themeId === "hogwarts" ? "harry-potter" : themeId;
+      
+      const levels = Array.isArray(THEME_LEVELS[lookupTheme as keyof typeof THEME_LEVELS])
+        ? THEME_LEVELS[lookupTheme as keyof typeof THEME_LEVELS] as string[]
         : THEME_LEVELS.classic;
       const levelIndex = Math.min(Math.floor(level / 10), levels.length - 1);
       return levels[levelIndex];
@@ -199,7 +196,9 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
   };
 
   const getNextLevel = () => {
-    if (userTheme === "naruto" && userCharacter) {
+    const themeId = theme?.toLowerCase() || "classic";
+    
+    if (themeId === "naruto" && userCharacter) {
       const characterLevels = (THEME_LEVELS.naruto as Record<string, string[]>)[userCharacter];
       if (characterLevels) {
         const nextLevelIndex = Math.min(Math.floor(subject.level / 10) + 1, characterLevels.length - 1);
@@ -207,14 +206,17 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
       }
     }
     
-    const levels = Array.isArray(THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS])
-      ? THEME_LEVELS[userTheme as keyof typeof THEME_LEVELS] as string[]
+    // Handle hogwarts as harry-potter for backward compatibility
+    const lookupTheme = themeId === "hogwarts" ? "harry-potter" : themeId;
+    
+    const levels = Array.isArray(THEME_LEVELS[lookupTheme as keyof typeof THEME_LEVELS])
+      ? THEME_LEVELS[lookupTheme as keyof typeof THEME_LEVELS] as string[]
       : THEME_LEVELS.classic;
     const nextLevelIndex = Math.min(Math.floor(subject.level / 10) + 1, levels.length - 1);
     return levels[nextLevelIndex];
   };
 
-  const themeColor = THEME_COLORS[userTheme as keyof typeof THEME_COLORS] || THEME_COLORS.classic;
+  const themeColor = getThemeTextColor(theme);
   
   // Safety check if subject is undefined
   if (!subject) {
@@ -231,8 +233,8 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
     return "normal";
   };
 
-  // Get user theme and level for badge (fallback to classic/0)
-  const themeId = userTheme || 'classic';
+  // Get user theme and level for badge
+  const themeId = theme?.toLowerCase() || 'classic';
   const userLevel = subject?.level || 0;
   const userRank = getRankName(themeId, userLevel);
 
@@ -248,39 +250,44 @@ export function SubjectCard({ subject, theme, onClick, className }: SubjectCardP
         description={subject.description || 'No description'}
         variant={getCardVariant()}
         icon={<BookOpen className="w-5 h-5" />}
-        className="h-full"
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span>Mastery:</span>
-              <span className="font-medium">{displayMastery}%</span>
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-1">
+              <Star className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm">{subject.xp || 0} XP</span>
             </div>
-            <ThemedProgress
+            <div className={`px-2 py-0.5 text-xs rounded-full border ${getRankBadgeClass(themeId)}`}>
+              Level {subject.level || 0}
+            </div>
+          </div>
+          
+          <div className="mb-3">
+            <div className="flex justify-between text-xs mb-1">
+              <span>Mastery</span>
+              <span>{displayMastery}%</span>
+            </div>
+            <ThemedProgress 
               theme={theme}
               progress={displayMastery}
-              currentXP={subject.xp || 0}
-              neededXP={(subject.level + 1) * 100}
+              className="h-1.5"
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
             <div className="flex items-center gap-1">
-              <Brain className="w-4 h-4 opacity-60" />
-              <span>{progress.totalTopics} topics</span>
+              <Brain className="h-3.5 w-3.5" />
+              <span>
+                {progress.completedTopics}/{progress.totalTopics} Topics
+              </span>
             </div>
             <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 opacity-60" />
-              <span>{progress.totalXP} XP</span>
+              <Clock className="h-3.5 w-3.5" />
+              <span>
+                {Math.round((subject.totalStudyTime || 0) / 60)}h Study Time
+              </span>
             </div>
           </div>
-          
-          {progress.lastStudied && (
-            <div className="text-xs opacity-60 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              <span>Last studied: {new Date(progress.lastStudied).toLocaleDateString()}</span>
-            </div>
-          )}
         </div>
       </ThemedCard>
     </Link>

@@ -7,6 +7,8 @@ import Navbar from "@/components/Navbar";
 import { Loader2 } from "lucide-react";
 import { ThemeWrapper } from "@/components/ThemeWrapper";
 import { ThemeDebug } from "@/components/ThemeDebug";
+import { LoginNotification } from "@/components/LoginNotification";
+import { StreakDebug } from "@/components/StreakDebug";
 import Link from "next/link";
 
 export default function DashboardLayout({
@@ -86,7 +88,13 @@ export default function DashboardLayout({
     <ThemeWrapper className="min-h-screen transition-colors duration-300">
       <Navbar />
       <main>{children}</main>
-      {process.env.NODE_ENV !== 'production' && <ThemeDebug />}
+      <LoginNotification />
+      {process.env.NODE_ENV !== 'production' && (
+        <>
+          <ThemeDebug />
+          <StreakDebug />
+        </>
+      )}
     </ThemeWrapper>
   );
 } 

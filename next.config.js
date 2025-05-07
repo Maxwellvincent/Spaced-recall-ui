@@ -11,11 +11,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   
-  // Disable static optimization
-  experimental: {
-    serverExternalPackages: ['firebase-admin'],
-  },
-  
   // Set a timeout for static page generation
   staticPageGenerationTimeout: 120,
   
@@ -46,9 +41,13 @@ const nextConfig = {
   // React settings
   reactStrictMode: false, // Temporarily disable strict mode to rule out issues
   
-  // Adding this to ensure proper client module support
-  // This should help with the "clientModules" error
+  // Remove poweredByHeader to simplify configuration
   poweredByHeader: false,
+  
+  // Force dynamic rendering to prevent hydration issues
+  experimental: {
+    // Remove any experimental features that might cause issues
+  }
 };
 
 module.exports = nextConfig; 

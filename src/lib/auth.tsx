@@ -2,10 +2,11 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseDb } from './firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { User } from 'firebase/auth';
+import { calculateStreak, checkStreakMilestone, calculateStreakRewards } from '@/utils/streakUtils';
 
 interface CalendarEvent {
   title: string;
@@ -111,14 +112,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           theme: 'Classic',
           tokens: 100, // Starting tokens
           xp: 0,
+          currentStreak: 1, // Initialize streak
+          highestStreak: 1, // Initialize highest streak
         });
-        console.log("Auth: User record created successfully");
+        console.log("Auth: User record created successfully with initial streak of 1");
       } else {
         console.log("Auth: User record exists, updating last login");
-        // Update last login time
-        await updateDoc(userRef, {
-          lastLogin: new Date().toISOString(),
+        const userData = userDoc.data();
+        const now = new Date();
+        
+        // Get current streak or default to 0
+        const currentStreak = userData.currentStreak ?? 0;
+        const highestStreak = userData.highestStreak ?? 0;
+        
+        console.log("Auth: Current streak values:", { currentStreak, highestStreak, lastLogin: userData.lastLogin });
+        
+        // Calculate new streak using utility function
+        const newStreak = calculateStreak(userData.lastLogin, currentStreak);
+        
+        // Update highest streak if current streak is higher
+        const newHighestStreak = Math.max(newStreak, highestStreak);
+        
+        console.log("Auth: New streak values:", { 
+          newStreak, 
+          newHighestStreak, 
+          lastLogin: now.toISOString() 
         });
+        
+        // Check if a milestone was reached
+        const milestone = checkStreakMilestone(currentStreak, newStreak);
+        
+        // Update user document with new streak and last login time
+        await updateDoc(userRef, {
+          lastLogin: now.toISOString(),
+          currentStreak: newStreak,
+          highestStreak: newHighestStreak
+        });
+        
+        console.log(`Auth: Updated streak in Firestore to ${newStreak} (highest: ${newHighestStreak})`);
+        
+        // If a milestone was reached, award XP and tokens
+        if (milestone) {
+          const rewards = calculateStreakRewards(milestone);
+          console.log(`Auth: Milestone ${milestone} reached! Awarding ${rewards.xp} XP and ${rewards.tokens} tokens`);
+          
+          // Update user with rewards
+          await updateDoc(userRef, {
+            totalXP: increment(rewards.xp),
+            tokens: increment(rewards.tokens),
+            streakMilestones: {
+              [milestone]: now.toISOString()
+            }
+          });
+          
+          // Show toast notification about milestone
+          toast.success(`🎉 ${milestone} day streak achieved! +${rewards.xp} XP, +${rewards.tokens} tokens`);
+        }
       }
       
       // Mark user as initialized
