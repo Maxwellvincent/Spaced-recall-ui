@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
@@ -84,6 +85,16 @@ export default function SpacedRecallPage() {
               return;
             }
             
+            // Skip unstudied topics (no study sessions or never studied)
+            const hasTopicBeenStudied = 
+              (topic.studySessions && topic.studySessions.length > 0) || 
+              (topic.lastStudied && topic.lastStudied.length > 0);
+            
+            if (!hasTopicBeenStudied) {
+              console.log(`Skipping unstudied topic: ${topic.name}`);
+              return;
+            }
+            
             if (topic.nextReview) {
               try {
                 const dueDate = new Date(topic.nextReview);
@@ -114,6 +125,16 @@ export default function SpacedRecallPage() {
             topic.concepts.forEach(concept => {
               if (!concept) {
                 console.warn(`Found null or undefined concept in topic ${topic.name}`);
+                return;
+              }
+              
+              // Skip unstudied concepts (no study sessions or never studied)
+              const hasConceptBeenStudied = 
+                (concept.studySessions && concept.studySessions.length > 0) || 
+                (concept.lastStudied && concept.lastStudied.length > 0);
+              
+              if (!hasConceptBeenStudied) {
+                console.log(`Skipping unstudied concept: ${concept.name}`);
                 return;
               }
               

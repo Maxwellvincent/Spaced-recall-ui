@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { getFirebaseDb } from '@/lib/firebase';
@@ -32,6 +32,9 @@ interface PageProps {
 const db = getFirebaseDb();
 
 export default function QuizPage({ params }: PageProps) {
+  const unwrappedParams = React.use(params);
+  const subjectId = unwrappedParams.subjectId;
+  
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,7 +59,7 @@ export default function QuizPage({ params }: PageProps) {
     const fetchSubjectAndGenerateQuiz = async () => {
       try {
         // Fetch subject data
-        const subjectRef = doc(db, 'subjects', params.subjectId);
+        const subjectRef = doc(db, 'subjects', subjectId);
         const subjectDoc = await getDoc(subjectRef);
         
         if (!subjectDoc.exists()) {
@@ -105,7 +108,7 @@ export default function QuizPage({ params }: PageProps) {
     };
 
     fetchSubjectAndGenerateQuiz();
-  }, [user, loading, params.subjectId, quizType, topicsList, router]);
+  }, [user, loading, subjectId, quizType, topicsList, router]);
 
   const handleAnswerSelect = (answer: string) => {
     if (isAnswered) return;
@@ -130,7 +133,7 @@ export default function QuizPage({ params }: PageProps) {
       toast.success(`Quiz completed! Score: ${Math.round(finalScore)}%`);
       
       // Navigate back to subject page
-      router.push(`/subjects/${params.subjectId}`);
+      router.push(`/subjects/${subjectId}`);
     }
   };
 
@@ -154,7 +157,7 @@ export default function QuizPage({ params }: PageProps) {
           <h2 className="text-2xl font-bold text-red-400 mb-4">Error</h2>
           <p className="text-slate-300 mb-6">{error}</p>
           <Link 
-            href={`/subjects/${params.subjectId}`}
+            href={`/subjects/${subjectId}`}
             className="inline-block bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition"
           >
             Return to Subject
@@ -182,7 +185,7 @@ export default function QuizPage({ params }: PageProps) {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <Link 
-            href={`/subjects/${params.subjectId}`}
+            href={`/subjects/${subjectId}`}
             className="text-blue-400 hover:text-blue-300 transition mb-2 inline-block"
           >
             <ArrowLeft className="h-4 w-4 inline mr-2" />

@@ -5,23 +5,27 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
-import { Loader2, Save, User, Palette, Coins, Star, Trophy, Clock, BarChart, RefreshCw } from "lucide-react";
+import { Loader2, Save, User, BarChart, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { 
   ThemedAvatar, 
   ThemedProgress,
   ThemedHeader,
-  ThemedCard,
-  ThemeSelector,
-  ThemedStreak
+  ThemedCard
 } from "@/components/ui/themed-components";
 import { useTheme } from '@/contexts/theme-context';
-import { themeConfig } from "@/config/themeConfig";
 import { getLevelFromXP, getProgressToNextLevel, getRankFromXP, activityTypes } from "@/lib/xpSystem";
 import { LoginStreakCard } from "@/components/ui/login-streak-card";
 import { toast } from "sonner";
 import { useLoginStreak } from "@/hooks/useLoginStreak";
+
+// Define missing activity types with XP values
+const ACTIVITY_XP = {
+  CREATE_SUBJECT: { xp: 0 },
+  CREATE_TOPIC: { xp: 25 },
+  CREATE_CONCEPT: { xp: 15 },
+  COMPLETE_QUIZ: { xp: 30 }
+};
 
 interface UserPreferences {
   theme: string;
@@ -48,57 +52,17 @@ interface XPBreakdown {
   }[];
 }
 
-function getRankBadgeClass(themeId: string) {
-  switch (themeId) {
-    case 'naruto':
-      return 'bg-orange-900/60 border-orange-700 text-orange-200';
-    case 'dbz':
-      return 'bg-yellow-900/60 border-yellow-700 text-yellow-200';
-    case 'harry-potter':
-      return 'bg-purple-900/60 border-purple-700 text-purple-200';
-    default:
-      return 'bg-blue-900/60 border-blue-700 text-blue-200';
-  }
-}
-
-// Helper function to get rank directly from themeConfig
-function getThemeRank(xp: number, theme: string): string {
-  if (!theme || !(theme.toLowerCase() in themeConfig)) {
-    return "Beginner";
-  }
-  
-  const themeData = themeConfig[theme.toLowerCase()];
-  const tiers = Object.entries(themeData.xpTiers)
-    .sort(([a], [b]) => Number(a) - Number(b));
-  
-  // Find the highest tier that the user's XP exceeds
-  for (let i = tiers.length - 1; i >= 0; i--) {
-    const [, tier] = tiers[i];
-    if (xp >= tier.xpRequired) {
-      return tier.name;
-    }
-  }
-  
-  // If no tier found, use the first one
-  return tiers[0][1].name;
-}
-
 export default function ProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [selectedTheme, setSelectedTheme] = useState<string>("classic");
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [isGeneratingCharacter, setIsGeneratingCharacter] = useState(false);
-  const [customCharacterPrompt, setCustomCharacterPrompt] = useState("");
   const [tokens, setTokens] = useState<number>(0);
-  const [initialTheme, setInitialTheme] = useState<string | null>(null);
   const [xpBreakdown, setXPBreakdown] = useState<XPBreakdown>({
     totalXP: 0,
     byActivity: {},
@@ -133,14 +97,9 @@ export default function ProfilePage() {
           });
           
           setPreferences(userData);
-          setSelectedTheme(userData.theme || "classic");
-          setInitialTheme(userData.theme || "classic");
-          setSelectedCharacter(userData.character || null);
           setDisplayName(userData.displayName || "");
           setTokens(userData.tokens ?? 0);
           
-          // Note: Streak values are now handled by useLoginStreak hook
-
           // Fetch subjects to calculate XP
           const subjectsRef = collection(db, 'subjects');
           const q = query(subjectsRef, where("userId", "==", user.uid));
@@ -149,95 +108,81 @@ export default function ProfilePage() {
           let totalXP = 0;
           let activityXP: { [key: string]: number } = {};
           let history: { date: string; activity: string; xp: number; }[] = [];
-
-          // Process each subject's study sessions
-          subjectsSnapshot.forEach((subjectDoc) => {
-            const subjectData = subjectDoc.data();
-            
-            // Add subject's total XP
-            if (subjectData.xp) {
-              totalXP += subjectData.xp;
-            }
-
-            // Process topics
-            if (subjectData.topics) {
-              subjectData.topics.forEach((topic: any) => {
-                if (topic.studySessions) {
-                  topic.studySessions.forEach((session: any) => {
-                    if (session.xpGained) {
-                      // Add to activity breakdown
-                      const activity = session.activityType || 'study';
-                      activityXP[activity] = (activityXP[activity] || 0) + session.xpGained;
-
-                      // Add to history
-                      history.push({
-                        date: session.date,
-                        activity: session.activityType || 'study',
-                        xp: session.xpGained
-                      });
-                    }
-                  });
-                }
-              });
+          
+          // Safely process each subject
+          subjectsSnapshot.forEach(docSnapshot => {
+            try {
+              const subjectData = docSnapshot.data();
+              console.log("Processing subject for XP:", subjectData.name, subjectData);
+              
+              // Remove subject creation XP - no longer awarding XP for creating subjects
+              
+              // Add subject's own XP if it exists - this is the primary source of XP
+              if (subjectData.xp && typeof subjectData.xp === 'number') {
+                console.log(`Adding subject's own XP: ${subjectData.xp}`);
+                totalXP += subjectData.xp;
+                activityXP['subject study'] = (activityXP['subject study'] || 0) + subjectData.xp;
+              }
+              
+              // Add quiz XP if quiz history exists
+              if (subjectData.quizHistory && Array.isArray(subjectData.quizHistory)) {
+                const quizXP = subjectData.quizHistory.length * ACTIVITY_XP.COMPLETE_QUIZ.xp;
+                totalXP += quizXP;
+                activityXP['quizzes'] = (activityXP['quizzes'] || 0) + quizXP;
+                
+                // Add to history
+                subjectData.quizHistory.forEach((quiz: any) => {
+                  if (quiz && quiz.date) {
+                    history.push({
+                      date: quiz.date,
+                      activity: 'Quiz Completion',
+                      xp: ACTIVITY_XP.COMPLETE_QUIZ.xp
+                    });
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Error processing subject:', err);
             }
           });
-
-          // Sort history by date and take most recent 10
+          
+          console.log("Total calculated XP:", totalXP);
+          console.log("Activity breakdown:", activityXP);
+          
+          // Sort history by date (newest first)
           history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          history = history.slice(0, 10);
-
-          // Calculate level and progress based on theme
-          const theme = themeConfig[userData.theme?.toLowerCase() || 'classic'];
-          const level = getLevelFromXP(totalXP, {
-            name: theme.label,
-            description: theme.description,
-            xpMultiplier: 1.0,
-            avatarLevels: theme.avatars,
-            xpTiers: theme.xpTiers
-          });
-
-          const progress = getProgressToNextLevel(totalXP, {
-            name: theme.label,
-            description: theme.description,
-            xpMultiplier: 1.0,
-            avatarLevels: theme.avatars,
-            xpTiers: theme.xpTiers
-          });
-
-          // Get rank name based on XP
-          const rank = getThemeRank(totalXP, userData.theme || "classic");
-
-          // Update the user's profile with the new XP, level, and rank
-          const shouldUpdateProfile = 
-            totalXP !== userData.totalXP || 
-            level !== userData.level || 
-            rank !== userData.rank;
-
-          if (shouldUpdateProfile) {
-            await updateDoc(userRef, {
-              totalXP,
-              level,
-              rank,
-              lastUpdated: new Date().toISOString()
-            });
-
-            // Update local state with new values
-            setPreferences(prev => ({
-              ...prev!,
-              totalXP,
-              level,
-              rank
-            }));
-          }
-
+          
+          // Calculate level and progress
+          const level = getLevelFromXP(totalXP);
+          const progress = getProgressToNextLevel(totalXP);
+          
           setXPBreakdown({
             totalXP,
             byActivity: activityXP,
-            recentHistory: history
+            recentHistory: history.slice(0, 10) // Get only the 10 most recent activities
           });
-
+          
           setCurrentLevel(level);
           setLevelProgress(progress);
+          
+          // Update the user document with the calculated XP and level if different
+          const shouldUpdateProfile = 
+            totalXP !== userData.totalXP || 
+            level !== userData.level;
+          
+          if (shouldUpdateProfile) {
+            console.log("Profile: Updating user document with new XP data", {
+              totalXP,
+              level,
+              currentXP: userData.totalXP
+            });
+            
+            await updateDoc(userRef, {
+              totalXP,
+              level,
+              lastUpdated: new Date().toISOString()
+            });
+          }
         }
       } catch (err) {
         console.error('Error fetching user data:', err);
@@ -246,19 +191,9 @@ export default function ProfilePage() {
         setLoading(false);
       }
     }
-
+    
     fetchUserData();
   }, [user, router]);
-
-  // Theme switch cost
-  const THEME_SWITCH_COST = 20;
-  const isFirstTime = !initialTheme || initialTheme === "";
-  const isThemeChanged = selectedTheme !== initialTheme;
-  const canSwitchTheme = isFirstTime || tokens >= THEME_SWITCH_COST;
-
-  const handleUpdateTheme = (newTheme: string) => {
-    setSelectedTheme(newTheme);
-  };
 
   const handleSavePreferences = async () => {
     if (!user) return;
@@ -270,33 +205,31 @@ export default function ProfilePage() {
     try {
       const userRef = doc(db, 'users', user.uid);
       
-      // Calculate token cost if changing theme
-      let newTokens = tokens;
-      if (isThemeChanged && !isFirstTime) {
-        newTokens -= THEME_SWITCH_COST;
-      }
-      
       // Update user document
       await updateDoc(userRef, {
-        theme: selectedTheme,
-        character: selectedCharacter,
         displayName: displayName || user.displayName || "User",
-        tokens: newTokens,
         lastUpdated: new Date().toISOString()
       });
       
-      // Update global theme context
-      setTheme(selectedTheme);
-      
-      // Update local state
-      setTokens(newTokens);
-      setInitialTheme(selectedTheme);
       setSuccess("Profile updated successfully!");
       
-      // Reload page after a short delay to apply theme changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Update the displayName in Firebase Auth if possible
+      if (user.displayName !== displayName) {
+        try {
+          await fetch('/api/auth/update-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              displayName
+            }),
+          });
+        } catch (authError) {
+          console.error('Error updating auth profile:', authError);
+          // Continue even if this fails
+        }
+      }
       
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -315,9 +248,9 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div>
       <ThemedHeader
-        theme={selectedTheme}
+        theme={theme}
         title="Your Profile"
         subtitle={`Welcome, ${displayName || user?.displayName || 'Student'}!`}
         className="mb-8"
@@ -340,13 +273,13 @@ export default function ProfilePage() {
           <h2 className="text-2xl font-semibold mb-4">Avatar & Progress</h2>
           <div className="p-6 bg-slate-900/50 rounded-lg border border-slate-800 flex flex-col items-center">
             <ThemedAvatar 
-              theme={selectedTheme} 
+              theme={theme} 
               xp={xpBreakdown.totalXP} 
               size="xl" 
               className="mb-6"
             />
             <ThemedProgress
-              theme={selectedTheme}
+              theme={theme}
               progress={levelProgress.percent}
               currentXP={levelProgress.currentXP}
               neededXP={levelProgress.neededXP}
@@ -370,7 +303,7 @@ export default function ProfilePage() {
           <h2 className="text-2xl font-semibold mb-4">Login Streak</h2>
           <div className="relative">
             <LoginStreakCard
-              theme={selectedTheme}
+              theme={theme}
               streak={userStreak}
               highestStreak={highestStreak}
             />
@@ -395,51 +328,10 @@ export default function ProfilePage() {
       </div>
       
       <div className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Theme Selection</h2>
-        <ThemedCard
-          theme={selectedTheme}
-          title="Choose Your Theme"
-          variant="normal"
-          className="mb-4"
-        >
-          <div className="mb-4">
-            <ThemeSelector 
-              currentTheme={selectedTheme} 
-              onThemeSelect={handleUpdateTheme} 
-            />
-          </div>
-          
-          {isThemeChanged && !isFirstTime && (
-            <div className="text-sm p-3 rounded-md bg-slate-800/50 mb-4">
-              <div className="flex items-center justify-between">
-                <span>Theme change cost:</span>
-                <span className="flex items-center">
-                  <Coins className="h-4 w-4 mr-1 text-yellow-400" />
-                  <span>{THEME_SWITCH_COST} tokens</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span>Your tokens:</span>
-                <span className="flex items-center">
-                  <Coins className="h-4 w-4 mr-1 text-yellow-400" />
-                  <span>{tokens}</span>
-                </span>
-              </div>
-              {!canSwitchTheme && (
-                <div className="text-red-400 mt-2">
-                  You don't have enough tokens to change your theme.
-                </div>
-              )}
-            </div>
-          )}
-        </ThemedCard>
-      </div>
-      
-      <div className="mb-10">
         <h2 className="text-2xl font-semibold mb-4">XP Breakdown</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ThemedCard
-            theme={selectedTheme}
+            theme={theme}
             title="Activity XP"
             variant="training"
             icon={<BarChart className="w-5 h-5" />}
@@ -458,7 +350,7 @@ export default function ProfilePage() {
           </ThemedCard>
           
           <ThemedCard
-            theme={selectedTheme}
+            theme={theme}
             title="Recent Activity"
             variant="normal"
             icon={<Clock className="w-5 h-5" />}
@@ -486,7 +378,7 @@ export default function ProfilePage() {
       <div className="mb-10">
         <h2 className="text-2xl font-semibold mb-4">Profile Information</h2>
         <ThemedCard
-          theme={selectedTheme}
+          theme={theme}
           title="Personal Details"
           variant="normal"
           icon={<User className="w-5 h-5" />}
@@ -520,7 +412,7 @@ export default function ProfilePage() {
       <div className="flex justify-end">
         <Button 
           onClick={handleSavePreferences}
-          disabled={saving || (isThemeChanged && !canSwitchTheme)}
+          disabled={saving}
           className="flex items-center gap-2"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

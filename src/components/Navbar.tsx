@@ -8,7 +8,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
-import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain, BarChart, Menu, X } from "lucide-react";
+import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain, BarChart, Menu, X, CheckCircle } from "lucide-react";
 import { ThemedAvatar } from "./ui/themed-components";
 import { themeConfig } from "@/config/themeConfig";
 
@@ -103,6 +103,9 @@ export default function Navbar() {
     { href: "/", label: "Home", icon: <Home className="h-5 w-5" /> },
     { href: "/dashboard", label: "Dashboard", icon: <Home className="h-5 w-5" /> },
     { href: "/subjects", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
+    { href: "/activities", label: "Activities", icon: <CheckCircle className="h-5 w-5" /> },
+    { href: "/todos", label: "Todos", icon: <CheckCircle className="h-5 w-5" /> },
+    { href: "/projects", label: "Projects", icon: <BarChart className="h-5 w-5" /> },
     { href: "/study-logger", label: "Study Logger", icon: <Clock className="h-5 w-5" /> },
     { href: "/study-overview", label: "Study Overview", icon: <BarChart className="h-5 w-5" /> },
     { href: "/spaced-recall", label: "Spaced Recall", icon: <Brain className="h-5 w-5" /> },
@@ -167,7 +170,7 @@ export default function Navbar() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
-              {user && navLinks.slice(1, 6).map((link, index) => (
+              {user && navLinks.slice(1, 8).map((link, index) => (
                 <Link
                   key={index}
                   href={link.href}

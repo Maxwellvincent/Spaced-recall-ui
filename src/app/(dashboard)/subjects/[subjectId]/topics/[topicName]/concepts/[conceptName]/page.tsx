@@ -1,30 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
 import type { Subject, Topic, Concept, StudySession, ReviewLog } from "@/types/study";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/contexts/theme-context";
 import { Loader2, ArrowLeft, Save, Brain, Plus, BookOpen, Video, PenTool, History, Edit2, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { activityTypes, difficultyLevels, calculateSessionXP } from "@/lib/xpSystem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuizRecommendations } from '@/components/QuizRecommendations';
 import { ReviewScheduler } from '@/components/ReviewScheduler';
 import SessionForm from '@/components/SessionForm';
+import { Button } from "@/components/ui/button";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     subjectId: string;
     topicName: string;
     conceptName: string;
-  }
+  }>;
 }
 
-export default function ConceptPage({ params }: PageProps) {
+export default function ConceptPage({ params: paramsPromise }: PageProps) {
+  const params = React.use(paramsPromise);
   const { user, loading } = useAuth();
   const router = useRouter();
   const [subject, setSubject] = useState<Subject | null>(null);
@@ -73,6 +77,83 @@ export default function ConceptPage({ params }: PageProps) {
   const [showQuizPreferences, setShowQuizPreferences] = useState(false);
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [quizScore, setQuizScore] = useState<number | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Get theme information
+  const { theme } = useTheme();
+  
+  // Function to get theme-specific styles
+  const getThemeStyles = () => {
+    switch (theme?.toLowerCase()) {
+      case 'dbz':
+        return {
+          primary: 'bg-yellow-600 hover:bg-yellow-700',
+          secondary: 'bg-yellow-700/50',
+          accent: 'text-yellow-400',
+          border: 'border-yellow-600',
+          cardBg: 'bg-yellow-950/50',
+          itemCard: 'bg-yellow-900 hover:bg-yellow-800',
+          progressBar: 'bg-yellow-500',
+          header: 'Training Detail',
+          buttonHover: 'hover:bg-yellow-700',
+          textPrimary: 'text-white',
+          textSecondary: 'text-yellow-100',
+          textMuted: 'text-yellow-200/80',
+          tabActive: 'bg-yellow-700'
+        };
+      case 'naruto':
+        return {
+          primary: 'bg-orange-600 hover:bg-orange-700',
+          secondary: 'bg-orange-700/50',
+          accent: 'text-orange-400',
+          border: 'border-orange-600',
+          cardBg: 'bg-orange-950/50',
+          itemCard: 'bg-orange-900 hover:bg-orange-800',
+          progressBar: 'bg-orange-500',
+          header: 'Jutsu Detail',
+          buttonHover: 'hover:bg-orange-700',
+          textPrimary: 'text-white',
+          textSecondary: 'text-orange-100',
+          textMuted: 'text-orange-200/80',
+          tabActive: 'bg-orange-700'
+        };
+      case 'hogwarts':
+        return {
+          primary: 'bg-purple-600 hover:bg-purple-700',
+          secondary: 'bg-purple-700/50',
+          accent: 'text-purple-400',
+          border: 'border-purple-600',
+          cardBg: 'bg-purple-950/50',
+          itemCard: 'bg-purple-900 hover:bg-purple-800',
+          progressBar: 'bg-purple-500',
+          header: 'Spell Detail',
+          buttonHover: 'hover:bg-purple-700',
+          textPrimary: 'text-white',
+          textSecondary: 'text-purple-100',
+          textMuted: 'text-purple-200/80',
+          tabActive: 'bg-purple-700'
+        };
+      default:
+        return {
+          primary: 'bg-blue-600 hover:bg-blue-700',
+          secondary: 'bg-blue-700/50',
+          accent: 'text-blue-400',
+          border: 'border-blue-600',
+          cardBg: 'bg-slate-800',
+          itemCard: 'bg-slate-700 hover:bg-slate-600',
+          progressBar: 'bg-blue-500',
+          header: 'Concept Detail',
+          buttonHover: 'hover:bg-blue-700',
+          textPrimary: 'text-white',
+          textSecondary: 'text-slate-100',
+          textMuted: 'text-slate-300',
+          tabActive: 'bg-blue-700'
+        };
+    }
+  };
+
+  const themeStyles = getThemeStyles();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -722,12 +803,56 @@ export default function ConceptPage({ params }: PageProps) {
     }
   };
 
+  const handleDeleteConcept = async () => {
+    if (!subject || !topic || !concept) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Filter out the current concept from the topic's concepts array
+      const updatedConcepts = topic.concepts?.filter(c => c.name !== concept.name) || [];
+      
+      // Update the topic with the filtered concepts
+      const updatedTopic = {
+        ...topic,
+        concepts: updatedConcepts
+      };
+      
+      // Update the topics array in the subject
+      const updatedTopics = subject.topics.map(t =>
+        t.name === topic.name ? updatedTopic : t
+      );
+      
+      // Update in Firestore
+      const subjectRef = doc(db, 'subjects', params.subjectId);
+      await updateDoc(subjectRef, {
+        topics: updatedTopics
+      });
+      
+      toast({
+        title: "Success",
+        description: "Concept deleted successfully",
+      });
+      
+      // Navigate back to the topic page
+      router.push(`/subjects/${params.subjectId}/topics/${encodeURIComponent(params.topicName)}`);
+    } catch (error) {
+      console.error('Error deleting concept:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete concept",
+        variant: "destructive",
+      });
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-          <p className="text-slate-200">Loading concept...</p>
+          <Loader2 className={`h-8 w-8 animate-spin mx-auto mb-4 ${themeStyles.accent}`} />
+          <p className={themeStyles.textPrimary}>Loading concept...</p>
         </div>
       </div>
     );
@@ -735,15 +860,15 @@ export default function ConceptPage({ params }: PageProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="bg-red-900/20 p-8 rounded-lg text-center max-w-md">
-          <h2 className="text-2xl font-bold text-red-400 mb-4">{error}</h2>
-          <p className="text-slate-300 mb-6">
-            Unable to load the concept. Please try again later.
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className={`${themeStyles.cardBg} p-8 rounded-lg text-center max-w-md ${themeStyles.border}`}>
+          <h2 className="text-2xl font-bold text-red-400 mb-4">Concept Not Found</h2>
+          <p className={`${themeStyles.textSecondary} mb-6`}>
+            {error}. It may have been deleted or you might not have access to it.
           </p>
           <Link 
-            href={`/subjects/${params.subjectId}/topics/${encodeURIComponent(params.topicName)}`}
-            className="inline-block bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition"
+            href={`/subjects/${params.subjectId}/topics/${params.topicName}`}
+            className={`inline-block ${themeStyles.primary} text-white px-6 py-2 rounded-lg transition`}
           >
             Return to Topic
           </Link>
@@ -754,10 +879,10 @@ export default function ConceptPage({ params }: PageProps) {
 
   if (!concept) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-          <p className="text-slate-200">Loading concept details...</p>
+          <Loader2 className={`h-8 w-8 animate-spin mx-auto mb-4 ${themeStyles.accent}`} />
+          <p className={themeStyles.textPrimary}>Loading concept...</p>
         </div>
       </div>
     );
@@ -831,6 +956,17 @@ export default function ConceptPage({ params }: PageProps) {
                         <Save className="h-4 w-4" />
                       )}
                       Save Changes
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditing(false);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                      disabled={isSaving}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
                     </button>
                   </>
                 ) : (
@@ -1247,6 +1383,42 @@ export default function ConceptPage({ params }: PageProps) {
           />
         )}
       </div>
+
+      {/* Delete Concept Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-slate-100">Delete Concept</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this concept? This action cannot be undone.
+              All study sessions and progress data will be permanently lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConcept}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Concept'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

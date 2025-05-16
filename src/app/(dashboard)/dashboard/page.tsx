@@ -6,7 +6,7 @@ import { getFirebaseDb } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, doc, updateDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/contexts/theme-context";
-import { Loader2, BookOpen, Clock, Star, Brain } from "lucide-react";
+import { Loader2, BookOpen, Clock, Star, Brain, CheckCircle, BarChart } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -61,6 +61,7 @@ export default function DashboardPage() {
   const [userTheme, setUserTheme] = useState('classic');
   const [userRank, setUserRank] = useState('');
   const [userXP, setUserXP] = useState(0);
+  const [userDisplayName, setUserDisplayName] = useState('');
   const [levelProgress, setLevelProgress] = useState({ currentXP: 0, neededXP: 100, percent: 0 });
   
   // Use the login streak hook
@@ -259,12 +260,17 @@ export default function DashboardPage() {
         const userDoc = await getDoc(userRef);
         let theme = 'classic';
         let userTotalXP = 0;
+        let displayName = user?.displayName || 'Student';
         
         if (userDoc.exists()) {
           const userData = userDoc.data();
           theme = userData.theme || 'classic';
           userTotalXP = userData.totalXP || 0;
+          displayName = userData.displayName || user?.displayName || 'Student';
           setUserXP(userTotalXP);
+          setUserDisplayName(displayName);
+          
+          console.log("Dashboard: User data loaded with XP:", userTotalXP);
           
           // Note: Streak values are now handled by useLoginStreak hook
         }
@@ -315,6 +321,19 @@ export default function DashboardPage() {
         setLevelProgress(progress);
         setUserRank(userRankName);
 
+        // Update the stats with the user's totalXP
+        setStats(prevStats => ({
+          ...prevStats,
+          totalXP: userTotalXP
+        }));
+
+        // Log the actual XP values for debugging
+        console.log('XP VALUES:', { 
+          userTotalXP,
+          subjectsTotalXP,
+          subjectXPs: subjectsData.map(s => ({ name: s.name, xp: s.xp }))
+        });
+
         // Update user document if level or rank has changed
         if (userDoc.exists() && (userDoc.data().level !== level || userDoc.data().rank !== userRankName)) {
           await updateDoc(userRef, {
@@ -354,7 +373,7 @@ export default function DashboardPage() {
         <ThemedHeader
           theme={theme}
           title="Dashboard"
-          subtitle={`Welcome back, ${user?.displayName || 'Student'}!`}
+          subtitle={`Welcome back, ${userDisplayName || user?.displayName || 'Student'}!`}
           className="mb-6"
         />
 
@@ -388,7 +407,7 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span>Total XP:</span>
-                <span className="font-medium">{stats.totalXP}</span>
+                <span className="font-medium">{userXP}</span>
               </div>
               <div className="flex justify-between">
                 <span>Average Mastery:</span>
@@ -424,6 +443,53 @@ export default function DashboardPage() {
           variant="compact"
           className="mb-6"
         />
+      </div>
+
+      {/* Subject Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Link href="/subjects">
+          <ThemedCard
+            theme={theme}
+            title="Subjects"
+            icon={<BookOpen className="w-5 h-5" />}
+            value={stats.totalSubjects.toString()}
+            description="Learning subjects"
+            variant="normal"
+          />
+        </Link>
+        
+        <Link href="/activities">
+          <ThemedCard
+            theme={theme}
+            title="Activities"
+            icon={<CheckCircle className="w-5 h-5" />}
+            value="Track"
+            description="Habits, todos & projects"
+            variant="normal"
+          />
+        </Link>
+
+        <Link href="/study-logger">
+          <ThemedCard
+            theme={theme}
+            title="Study Sessions"
+            icon={<Clock className="w-5 h-5" />}
+            value={stats.totalTopics.toString()}
+            description="Topics to learn"
+            variant="normal"
+          />
+        </Link>
+
+        <Link href="/study-overview">
+          <ThemedCard
+            theme={theme}
+            title="Study Overview"
+            icon={<BarChart className="w-5 h-5" />}
+            value={`${stats.averageMastery.toFixed(0)}%`}
+            description="Average mastery"
+            variant="normal"
+          />
+        </Link>
       </div>
 
       {/* Recent Subjects with Themed Header */}

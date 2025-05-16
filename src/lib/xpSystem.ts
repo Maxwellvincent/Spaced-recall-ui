@@ -182,6 +182,10 @@ export const activityTypes = {
   study: { name: 'Study Session', baseXp: 100, factors: ['difficulty', 'duration'] },
   review: { name: 'Review Session', baseXp: 85, factors: ['difficulty', 'duration'] },
   practice: { name: 'Practice Session', baseXp: 115, factors: ['difficulty', 'duration'] },
+  habit: { name: 'Habit Completion', baseXp: 50, factors: ['consistency', 'difficulty'] },
+  todo: { name: 'Todo Completion', baseXp: 75, factors: ['priority', 'difficulty'] },
+  project: { name: 'Project Progress', baseXp: 120, factors: ['complexity', 'progress'] },
+  milestone: { name: 'Project Milestone', baseXp: 200, factors: ['importance'] },
 };
 
 export const difficultyLevels = {
@@ -279,8 +283,11 @@ export function getRankFromXP(xp: number, theme: ThemeConfig): string {
 }
 
 // Get current level based on XP
-export function getLevelFromXP(xp: number, theme: ThemeConfig): number {
-  const adjustedXP = xp / theme.xpMultiplier;
+export function getLevelFromXP(xp: number, theme?: ThemeConfig): number {
+  // Use default multiplier of 1 if no theme provided
+  const multiplier = theme?.xpMultiplier || 1;
+  const adjustedXP = xp / multiplier;
+  
   for (let i = 0; i < baseXPThresholds.length; i++) {
     if (adjustedXP < baseXPThresholds[i]) {
       return i;
@@ -290,12 +297,15 @@ export function getLevelFromXP(xp: number, theme: ThemeConfig): number {
 }
 
 // Get progress to next level
-export function getProgressToNextLevel(xp: number, theme: ThemeConfig): {
+export function getProgressToNextLevel(xp: number, theme?: ThemeConfig): {
   currentXP: number;
   neededXP: number;
   percent: number;
 } {
-  const adjustedXP = xp / theme.xpMultiplier;
+  // Use default multiplier of 1 if no theme provided
+  const multiplier = theme?.xpMultiplier || 1;
+  const adjustedXP = xp / multiplier;
+  
   const currentLevel = getLevelFromXP(xp, theme);
   const currentThreshold = baseXPThresholds[currentLevel - 1] || 0;
   const nextThreshold = baseXPThresholds[currentLevel] || baseXPThresholds[baseXPThresholds.length - 1];

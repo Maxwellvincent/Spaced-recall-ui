@@ -92,17 +92,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Ensure the user exists in Firestore
   const ensureUserExists = async (user: User) => {
     try {
-      console.log("Auth: Ensuring user exists in Firestore");
+      console.log("Auth: Ensuring user exists in Firestore", { userId: user.uid });
       const db = getFirebaseDb();
+      
+      // Test Firestore connection with a simple operation
+      try {
+        console.log("Auth: Testing Firestore connection");
+        const testCollection = db.collection('test');
+        console.log("Auth: Firestore connection successful");
+      } catch (firestoreError) {
+        console.error("Auth: Error connecting to Firestore:", firestoreError);
+      }
+      
       const userRef = doc(db, 'users', user.uid);
       
       console.log("Auth: Fetching user document");
       const userDoc = await getDoc(userRef);
+      console.log("Auth: User document exists:", userDoc.exists());
       
       if (!userDoc.exists()) {
         console.log("Auth: Creating new user record in Firestore");
         // Create a new user record
-        await setDoc(userRef, {
+        const userData = {
           email: user.email,
           displayName: user.displayName || user.email?.split('@')[0] || 'User',
           photoURL: user.photoURL || null,
@@ -112,10 +123,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           theme: 'Classic',
           tokens: 100, // Starting tokens
           xp: 0,
+          totalXP: 0,
           currentStreak: 1, // Initialize streak
           highestStreak: 1, // Initialize highest streak
-        });
-        console.log("Auth: User record created successfully with initial streak of 1");
+        };
+        
+        console.log("Auth: New user data:", userData);
+        
+        try {
+          await setDoc(userRef, userData);
+          console.log("Auth: User record created successfully with initial streak of 1");
+        } catch (setDocError) {
+          console.error("Auth: Error creating user document:", setDocError);
+        }
       } else {
         console.log("Auth: User record exists, updating last login");
         const userData = userDoc.data();
@@ -143,13 +163,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const milestone = checkStreakMilestone(currentStreak, newStreak);
         
         // Update user document with new streak and last login time
-        await updateDoc(userRef, {
-          lastLogin: now.toISOString(),
-          currentStreak: newStreak,
-          highestStreak: newHighestStreak
-        });
-        
-        console.log(`Auth: Updated streak in Firestore to ${newStreak} (highest: ${newHighestStreak})`);
+        try {
+          await updateDoc(userRef, {
+            lastLogin: now.toISOString(),
+            currentStreak: newStreak,
+            highestStreak: newHighestStreak
+          });
+          
+          console.log(`Auth: Updated streak in Firestore to ${newStreak} (highest: ${newHighestStreak})`);
+        } catch (updateError) {
+          console.error("Auth: Error updating user document:", updateError);
+        }
         
         // If a milestone was reached, award XP and tokens
         if (milestone) {
@@ -157,16 +181,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.log(`Auth: Milestone ${milestone} reached! Awarding ${rewards.xp} XP and ${rewards.tokens} tokens`);
           
           // Update user with rewards
-          await updateDoc(userRef, {
-            totalXP: increment(rewards.xp),
-            tokens: increment(rewards.tokens),
-            streakMilestones: {
-              [milestone]: now.toISOString()
-            }
-          });
-          
-          // Show toast notification about milestone
-          toast.success(`🎉 ${milestone} day streak achieved! +${rewards.xp} XP, +${rewards.tokens} tokens`);
+          try {
+            await updateDoc(userRef, {
+              totalXP: increment(rewards.xp),
+              tokens: increment(rewards.tokens),
+              streakMilestones: {
+                [milestone]: now.toISOString()
+              }
+            });
+            
+            // Show toast notification about milestone
+            toast.success(`🎉 ${milestone} day streak achieved! +${rewards.xp} XP, +${rewards.tokens} tokens`);
+          } catch (rewardsError) {
+            console.error("Auth: Error updating rewards:", rewardsError);
+          }
         }
       }
       

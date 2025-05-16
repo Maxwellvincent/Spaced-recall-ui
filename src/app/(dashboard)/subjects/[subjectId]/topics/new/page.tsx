@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
@@ -24,6 +24,9 @@ interface ExtendedSubject extends Subject {
 const db = getFirebaseDb();
 
 export default function NewTopicPage({ params }: PageProps) {
+  const unwrappedParams = React.use(params);
+  const subjectId = unwrappedParams.subjectId;
+  
   const { user, loading } = useAuth();
   const router = useRouter();
   const [subject, setSubject] = useState<ExtendedSubject | null>(null);
@@ -44,7 +47,7 @@ export default function NewTopicPage({ params }: PageProps) {
       if (!user) return;
 
       try {
-        const subjectRef = doc(db, 'subjects', params.subjectId);
+        const subjectRef = doc(db, 'subjects', subjectId);
         const subjectDoc = await getDoc(subjectRef);
         
         if (!subjectDoc.exists()) {
@@ -73,7 +76,7 @@ export default function NewTopicPage({ params }: PageProps) {
     };
 
     fetchSubject();
-  }, [user, loading, params.subjectId, router]);
+  }, [user, loading, subjectId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,7 +166,7 @@ export default function NewTopicPage({ params }: PageProps) {
             Unable to add a new topic. Please try again later.
           </p>
           <Link 
-            href={`/subjects/${params.subjectId}`}
+            href={`/subjects/${subjectId}`}
             className="inline-block bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition"
           >
             Return to Subject

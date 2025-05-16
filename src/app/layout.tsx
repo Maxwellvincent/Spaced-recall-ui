@@ -32,7 +32,7 @@ export default function RootLayout({
           {`window.__NEXT_DATA__ = window.__NEXT_DATA__ || {};`}
         </Script>
       </head>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider>
             <StreakProvider>
