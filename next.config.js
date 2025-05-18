@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Use a basic configuration first to diagnose the issue
-  distDir: '.next',
-  
   // Skip type checking and linting during build
   typescript: {
     ignoreBuildErrors: true,
@@ -43,11 +40,6 @@ const nextConfig = {
   
   // Remove poweredByHeader to simplify configuration
   poweredByHeader: false,
-  
-  // Force dynamic rendering to prevent hydration issues
-  experimental: {
-    // Remove any experimental features that might cause issues
-  }
 };
 
 module.exports = nextConfig; 

@@ -6,6 +6,7 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { ThemedCard, ThemedProgress } from "./themed-components";
+import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -56,6 +57,7 @@ interface Subject {
   totalStudyTime: number;
   topics: any[];
   sessions: any[];
+  quizHistory?: any[];
 }
 
 interface SubjectCardProps {
@@ -257,9 +259,20 @@ export function SubjectCard({ subject, theme = "classic", onClick, className }: 
               <Star className="h-4 w-4 text-yellow-500" />
               <span className="text-sm">{subject.xp || 0} XP</span>
             </div>
-            <div className={`px-2 py-0.5 text-xs rounded-full border ${getRankBadgeClass(themeId)}`}>
-              Level {subject.level || 0}
-            </div>
+            {themeId === 'dbz' ? (
+              <div className="flex flex-col items-end">
+                <div className="px-2 py-0.5 text-xs rounded-full border border-yellow-500 bg-yellow-900/40 text-yellow-200 font-bold">
+                  Power Level: {getDbzPowerLevel(subject.xp || 0).toLocaleString()}
+                </div>
+                <div className="text-[10px] font-bold text-yellow-300 mt-0.5">
+                  {getDbzMilestone(getDbzPowerLevel(subject.xp || 0))}
+                </div>
+              </div>
+            ) : (
+              <div className={`px-2 py-0.5 text-xs rounded-full border ${getRankBadgeClass(themeId)}`}>
+                Level {subject.level || 0}
+              </div>
+            )}
           </div>
           
           <div className="mb-3">
@@ -273,8 +286,7 @@ export function SubjectCard({ subject, theme = "classic", onClick, className }: 
               className="h-1.5"
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 mb-1">
             <div className="flex items-center gap-1">
               <Brain className="h-3.5 w-3.5" />
               <span>
@@ -287,6 +299,15 @@ export function SubjectCard({ subject, theme = "classic", onClick, className }: 
                 {Math.round((subject.totalStudyTime || 0) / 60)}h Study Time
               </span>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-400 mb-1">
+            {progress.lastStudied && (
+              <span>Last studied: {new Date(progress.lastStudied).toLocaleDateString()}</span>
+            )}
+            <span>Sessions: {subject.sessions?.length || 0}</span>
+            {subject.quizHistory && (
+              <span>Quizzes: {subject.quizHistory.length}</span>
+            )}
           </div>
         </div>
       </ThemedCard>

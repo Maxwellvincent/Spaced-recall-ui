@@ -10,14 +10,7 @@
  * @returns Updated streak count
  */
 export function calculateStreak(lastActivityDate: string | null, currentStreak: number = 0): number {
-  console.log("StreakUtils: Calculating streak with inputs:", { 
-    lastActivityDate, 
-    currentStreak,
-    currentDate: new Date().toISOString()
-  });
-  
   if (!lastActivityDate) {
-    console.log("StreakUtils: No last activity date, returning 1");
     return 1; // First login
   }
   
@@ -32,26 +25,17 @@ export function calculateStreak(lastActivityDate: string | null, currentStreak: 
   const diffTime = now.getTime() - lastActivity.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   
-  console.log("StreakUtils: Days since last activity:", {
-    now: now.toISOString(),
-    lastActivity: lastActivity.toISOString(),
-    diffDays
-  });
-  
   // If logged in today already, streak stays the same
   if (diffDays === 0) {
-    console.log(`StreakUtils: Already logged in today, streak unchanged at ${currentStreak}`);
     return currentStreak;
   }
   // If logged in yesterday, increment streak
   else if (diffDays === 1) {
     const newStreak = currentStreak + 1;
-    console.log(`StreakUtils: Consecutive login, incrementing streak to ${newStreak}`);
     return newStreak;
   }
   // If missed a day or more, reset streak to 1
   else {
-    console.log(`StreakUtils: Login streak broken (${diffDays} days gap), resetting to 1`);
     return 1;
   }
 }

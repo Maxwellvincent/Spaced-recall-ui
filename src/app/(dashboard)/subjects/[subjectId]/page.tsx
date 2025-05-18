@@ -45,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
 
 // Custom Sync icon as fallback
 const CustomSyncIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -897,8 +898,18 @@ export default function SubjectDetailsPage({ params }: PageProps) {
               <h2 className="text-xl font-semibold mb-4">Progress</h2>
               <div className="flex justify-between mb-4">
                 <div>
-                  <p className="text-sm text-slate-400">Level</p>
-                  <p className="text-2xl font-bold">{subject.level}</p>
+                  {theme === 'dbz' ? (
+                    <>
+                      <p className="text-sm text-yellow-400 font-bold">Power Level</p>
+                      <p className="text-2xl font-bold text-yellow-300">{getDbzPowerLevel(subject.xp).toLocaleString()}</p>
+                      <p className="text-xs font-bold text-yellow-200 mt-1">{getDbzMilestone(getDbzPowerLevel(subject.xp))}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-slate-400">Level</p>
+                      <p className="text-2xl font-bold">{subject.level}</p>
+                    </>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-slate-400">XP</p>

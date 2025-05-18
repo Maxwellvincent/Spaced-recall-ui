@@ -18,6 +18,7 @@ import { getLevelFromXP, getProgressToNextLevel, getRankFromXP, activityTypes } 
 import { LoginStreakCard } from "@/components/ui/login-streak-card";
 import { toast } from "sonner";
 import { useLoginStreak } from "@/hooks/useLoginStreak";
+import { calculateUserXP } from '@/utils/calculateUserXP';
 
 // Define missing activity types with XP values
 const ACTIVITY_XP = {
@@ -52,6 +53,36 @@ interface XPBreakdown {
   }[];
 }
 
+// DBZ Power Level mapping (approximate, based on DBZ canon)
+function getDbzPowerLevel(xp) {
+  // Example mapping: XP to DBZ power level (not linear, for drama)
+  if (xp >= 2000000) return 150000000; // Frieza (final form)
+  if (xp >= 1000000) return 30000000;  // Goku (Super Saiyan)
+  if (xp >= 500000) return 3000000;    // Vegeta (Namek)
+  if (xp >= 100000) return 180000;     // Goku (Saiyan Saga)
+  if (xp >= 50000) return 90000;       // Ginyu Force
+  if (xp >= 9000) return 9001;         // Over 9000 meme
+  if (xp >= 5000) return 8000;
+  if (xp >= 1000) return 4000;
+  if (xp >= 500) return 1500;
+  if (xp >= 100) return 500;
+  return Math.max(5, Math.floor(xp * 2)); // Early DBZ humans
+}
+
+function getDbzMilestone(powerLevel) {
+  if (powerLevel >= 150000000) return "Final Form Frieza!";
+  if (powerLevel >= 30000000) return "Super Saiyan Goku!";
+  if (powerLevel >= 3000000) return "Namek Saga Vegeta!";
+  if (powerLevel >= 180000) return "Saiyan Saga Goku!";
+  if (powerLevel >= 90000) return "Ginyu Force!";
+  if (powerLevel >= 9001) return "It's Over 9,000!";
+  if (powerLevel >= 8000) return "Elite Saiyan!";
+  if (powerLevel >= 4000) return "Piccolo (Saiyan Saga)!";
+  if (powerLevel >= 1500) return "Raditz!";
+  if (powerLevel >= 500) return "Yamcha!";
+  return "Earthling";
+}
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -80,12 +111,14 @@ export default function ProfilePage() {
   } = useLoginStreak();
 
   useEffect(() => {
+    console.log("Profile useEffect running, user:", user);
     if (!user) {
       router.push('/login');
       return;
     }
 
     async function fetchUserData() {
+      console.log("fetchUserData called, user:", user);
       try {
         const userRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userRef);
@@ -100,86 +133,27 @@ export default function ProfilePage() {
           setDisplayName(userData.displayName || "");
           setTokens(userData.tokens ?? 0);
           
-          // Fetch subjects to calculate XP
-          const subjectsRef = collection(db, 'subjects');
-          const q = query(subjectsRef, where("userId", "==", user.uid));
-          const subjectsSnapshot = await getDocs(q);
-
-          let totalXP = 0;
-          let activityXP: { [key: string]: number } = {};
-          let history: { date: string; activity: string; xp: number; }[] = [];
-          
-          // Safely process each subject
-          subjectsSnapshot.forEach(docSnapshot => {
-            try {
-              const subjectData = docSnapshot.data();
-              console.log("Processing subject for XP:", subjectData.name, subjectData);
-              
-              // Remove subject creation XP - no longer awarding XP for creating subjects
-              
-              // Add subject's own XP if it exists - this is the primary source of XP
-              if (subjectData.xp && typeof subjectData.xp === 'number') {
-                console.log(`Adding subject's own XP: ${subjectData.xp}`);
-                totalXP += subjectData.xp;
-                activityXP['subject study'] = (activityXP['subject study'] || 0) + subjectData.xp;
-              }
-              
-              // Add quiz XP if quiz history exists
-              if (subjectData.quizHistory && Array.isArray(subjectData.quizHistory)) {
-                const quizXP = subjectData.quizHistory.length * ACTIVITY_XP.COMPLETE_QUIZ.xp;
-                totalXP += quizXP;
-                activityXP['quizzes'] = (activityXP['quizzes'] || 0) + quizXP;
-                
-                // Add to history
-                subjectData.quizHistory.forEach((quiz: any) => {
-                  if (quiz && quiz.date) {
-                    history.push({
-                      date: quiz.date,
-                      activity: 'Quiz Completion',
-                      xp: ACTIVITY_XP.COMPLETE_QUIZ.xp
-                    });
-                  }
-                });
-              }
-            } catch (err) {
-              console.error('Error processing subject:', err);
-            }
-          });
-          
-          console.log("Total calculated XP:", totalXP);
-          console.log("Activity breakdown:", activityXP);
-          
-          // Sort history by date (newest first)
-          history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          
-          // Calculate level and progress
-          const level = getLevelFromXP(totalXP);
-          const progress = getProgressToNextLevel(totalXP);
-          
+          // Use shared XP calculation
+          const xpResult = await calculateUserXP(user.uid, db);
           setXPBreakdown({
-            totalXP,
-            byActivity: activityXP,
-            recentHistory: history.slice(0, 10) // Get only the 10 most recent activities
+            totalXP: xpResult.totalXP,
+            byActivity: xpResult.byActivity,
+            recentHistory: xpResult.recentHistory
           });
+          setCurrentLevel(xpResult.level);
+          setLevelProgress(xpResult.progress);
           
-          setCurrentLevel(level);
-          setLevelProgress(progress);
-          
-          // Update the user document with the calculated XP and level if different
-          const shouldUpdateProfile = 
-            totalXP !== userData.totalXP || 
-            level !== userData.level;
-          
-          if (shouldUpdateProfile) {
+          // Update user doc if out of sync
+          if (userData.totalXP !== xpResult.totalXP || userData.level !== xpResult.level) {
             console.log("Profile: Updating user document with new XP data", {
-              totalXP,
-              level,
+              totalXP: xpResult.totalXP,
+              level: xpResult.level,
               currentXP: userData.totalXP
             });
             
             await updateDoc(userRef, {
-              totalXP,
-              level,
+              totalXP: xpResult.totalXP,
+              level: xpResult.level,
               lastUpdated: new Date().toISOString()
             });
           }
@@ -247,6 +221,9 @@ export default function ProfilePage() {
     );
   }
 
+  // Debug: Log xpBreakdown before rendering
+  console.log("Rendering profile page, xpBreakdown:", xpBreakdown);
+
   return (
     <div>
       <ThemedHeader
@@ -288,9 +265,21 @@ export default function ProfilePage() {
             
             <div className="mt-4 w-full">
               <div className="flex justify-between mb-1">
-                <span className="text-sm">Level {currentLevel}</span>
+                {theme === 'dbz' ? (
+                  <span className="text-sm font-bold text-yellow-400">
+                    Power Level: {getDbzPowerLevel(xpBreakdown.totalXP).toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-sm">Level {currentLevel}</span>
+                )}
                 <span className="text-sm">{preferences?.rank}</span>
               </div>
+              {/* DBZ Milestone */}
+              {theme === 'dbz' && (
+                <div className="text-xs font-bold text-yellow-300 mt-1">
+                  {getDbzMilestone(getDbzPowerLevel(xpBreakdown.totalXP))}
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Total XP: {xpBreakdown.totalXP}</span>
                 <span className="text-sm text-slate-400">Tokens: {tokens}</span>
@@ -360,7 +349,7 @@ export default function ProfilePage() {
                 <div key={index} className="flex justify-between text-sm border-b border-slate-700/50 pb-1">
                   <div className="flex flex-col">
                     <span className="capitalize">{item.activity}</span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-white font-semibold">
                       {new Date(item.date).toLocaleDateString()}
                     </span>
                   </div>
@@ -368,7 +357,7 @@ export default function ProfilePage() {
                 </div>
               ))}
               {xpBreakdown.recentHistory.length === 0 && (
-                <p className="text-slate-400">No recent activity</p>
+                <p className="text-white font-semibold">No recent activity</p>
               )}
             </div>
           </ThemedCard>

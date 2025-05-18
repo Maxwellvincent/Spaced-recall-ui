@@ -1,4 +1,6 @@
 import { activityTypes } from "@/lib/xpSystem";
+import { TimerSettings } from './timer';
+import { ProjectWorkItem } from '@/types/project';
 
 // Base interface for all activity types
 export interface BaseActivity {
@@ -31,6 +33,27 @@ export interface Habit extends BaseActivity {
   bestStreak: number;
   reminderEnabled?: boolean;
   reminderTime?: string; // HH:MM format
+}
+
+// Book reading habit extension
+export interface BookReadingHabit extends Habit {
+  habitSubtype: 'book-reading';
+  book: {
+    title: string;
+    author?: string;
+    totalPages?: number;
+    currentPage: number; // Current page the user is on
+    startDate: string;
+    completionDate?: string;
+    isCompleted: boolean;
+  };
+  readingSessions: Array<{
+    date: string;
+    startPage: number;
+    endPage: number;
+    duration: number; // Minutes spent reading
+    summary?: string; // User's summary of what they read
+  }>;
 }
 
 // Todo item
@@ -71,6 +94,7 @@ export interface Project extends BaseActivity {
     completedAt?: string;
   }>;
   collaborators?: string[]; // Array of user IDs
+  workItems?: ProjectWorkItem[];
 }
 
 // Activity session for tracking time spent
@@ -86,7 +110,7 @@ export interface ActivitySession {
 }
 
 // Union type for all activity types
-export type Activity = Habit | Todo | Project;
+export type Activity = Habit | Todo | Project | BookReadingHabit;
 
 // Interface for activity stats
 export interface ActivityStats {
@@ -97,4 +121,90 @@ export interface ActivityStats {
   currentStreak: number;
   bestStreak: number;
   completionRate: number;
+}
+
+export type ActivityType = 'habit' | 'todo' | 'project';
+export type ActivityStatus = 'active' | 'completed' | 'archived';
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Frequency = 'daily' | 'weekly' | 'monthly';
+
+interface BaseActivity {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  type: ActivityType;
+  status: ActivityStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimedActivitySession {
+  id: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  activeTime: number;
+  idleTime: number;
+  overtime?: number;
+}
+
+export interface HabitActivity extends BaseActivity {
+  type: 'habit';
+  difficulty: Difficulty;
+  frequency: Frequency;
+  streak: number;
+  bestStreak: number;
+  completedCount: number;
+  lastCompleted?: string;
+  completionHistory: Array<{
+    date: string;
+    duration?: number;
+    activeTime?: number;
+  }>;
+  isTimed?: boolean;
+  timerSettings?: TimerSettings;
+  sessions?: TimedActivitySession[];
+}
+
+export interface TodoActivity extends BaseActivity {
+  type: 'todo';
+  dueDate?: string;
+  priority: 'low' | 'medium' | 'high';
+  completedAt?: string;
+  isTimed?: boolean;
+  timerSettings?: TimerSettings;
+  sessions?: TimedActivitySession[];
+}
+
+export interface ProjectMilestone {
+  id: string;
+  name: string;
+  description?: string;
+  dueDate?: string;
+  completedAt?: string;
+  order: number;
+}
+
+export interface ProjectActivity extends BaseActivity {
+  type: 'project';
+  startDate: string;
+  endDate?: string;
+  progress: number;
+  milestones: ProjectMilestone[];
+  isTimed?: boolean;
+  timerSettings?: TimerSettings;
+  sessions?: TimedActivitySession[];
+  workItems?: ProjectWorkItem[];
+}
+
+export type Activity = HabitActivity | TodoActivity | ProjectActivity;
+
+export interface ActivityStats {
+  totalActivities: number;
+  completedActivities: number;
+  activeStreaks: number;
+  totalTimeSpent: number;
+  activeTime: number;
+  longestStreak: number;
 } 

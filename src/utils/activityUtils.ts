@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Habit, Todo, Project, Activity, ActivityStats } from '@/types/activities';
+import { Habit, Todo, Project, Activity, ActivityStats, BookReadingHabit } from '@/types/activities';
 import { calculateSessionXP } from '@/lib/xpSystem';
 
 /**
@@ -26,6 +26,37 @@ export function createHabit(data: Partial<Habit> & { name: string; userId: strin
     bestStreak: 0,
     tags: data.tags || [],
   };
+}
+
+/**
+ * Create a new book reading habit
+ */
+export function createBookReadingHabit(
+  data: Partial<BookReadingHabit> & { 
+    name: string; 
+    userId: string;
+    book: {
+      title: string;
+      author?: string;
+      totalPages?: number;
+    }
+  }
+): BookReadingHabit {
+  const baseHabit = createHabit(data);
+  
+  return {
+    ...baseHabit,
+    habitSubtype: 'book-reading',
+    book: {
+      title: data.book.title,
+      author: data.book.author || '',
+      totalPages: data.book.totalPages || 0,
+      currentPage: 0,
+      startDate: new Date().toISOString(),
+      isCompleted: false,
+    },
+    readingSessions: [],
+  } as BookReadingHabit;
 }
 
 /**
@@ -295,6 +326,80 @@ export function completeProjectMilestone(
   };
   
   return { updatedProject, xpGained: finalXp };
+}
+
+/**
+ * Record a reading session and calculate XP
+ */
+export function recordReadingSession(
+  habit: BookReadingHabit, 
+  session: { 
+    startPage: number; 
+    endPage: number; 
+    duration: number; 
+    summary?: string;
+  }
+): { updatedHabit: BookReadingHabit; xpGained: number } {
+  const now = new Date().toISOString();
+  const pagesRead = Math.max(0, session.endPage - session.startPage);
+  
+  if (pagesRead <= 0) {
+    return { updatedHabit: habit, xpGained: 0 };
+  }
+  
+  // First, complete the habit as usual
+  const { updatedHabit: baseUpdatedHabit, xpGained: baseXp } = completeHabit(habit);
+  
+  // Calculate additional XP for pages read
+  // Base: 1 XP per page, adjusted for difficulty
+  const difficultyMultiplier = {
+    'easy': 0.8,
+    'medium': 1.0,
+    'hard': 1.5
+  }[habit.difficulty];
+  
+  const pagesXp = Math.round(pagesRead * difficultyMultiplier);
+  
+  // Bonus XP for adding a summary (encourages reflection)
+  const summaryBonus = session.summary && session.summary.length > 50 ? 20 : 0;
+  
+  // Total XP
+  const totalXp = baseXp + pagesXp + summaryBonus;
+  
+  // Check if book is now complete
+  const isBookComplete = 
+    habit.book.totalPages && 
+    session.endPage >= habit.book.totalPages;
+  
+  // Apply completion bonus if book is finished
+  const completionBonus = isBookComplete ? 100 : 0;
+  
+  // Create updated habit
+  const updatedHabit: BookReadingHabit = {
+    ...baseUpdatedHabit,
+    book: {
+      ...habit.book,
+      currentPage: session.endPage,
+      isCompleted: isBookComplete,
+      completionDate: isBookComplete ? now : habit.book.completionDate,
+    },
+    readingSessions: [
+      {
+        date: now,
+        startPage: session.startPage,
+        endPage: session.endPage,
+        duration: session.duration,
+        summary: session.summary,
+      },
+      ...habit.readingSessions,
+    ],
+    xp: baseUpdatedHabit.xp + pagesXp + summaryBonus + completionBonus,
+  } as BookReadingHabit;
+  
+  return { 
+    updatedHabit, 
+    xpGained: totalXp + completionBonus 
+  };
 }
 
 /**

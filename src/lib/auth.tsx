@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { getFirebaseAuth, getFirebaseDb } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, collection } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import type { User } from 'firebase/auth';
@@ -38,53 +38,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Skip if not in browser
     if (typeof window === 'undefined') {
-      console.log("Auth: Running on server, skipping auth initialization");
       setLoadingState(false);
       return;
     }
     
-    console.log("Auth: Initializing auth in browser");
     let unsubscribe = () => {};
     
     try {
       // Only initialize auth once
       if (!authInstance) {
-        console.log("Auth: Getting Firebase auth instance");
         authInstance = getFirebaseAuth();
       }
       
       // Set up auth state listener
-      console.log("Auth: Setting up auth state listener");
       unsubscribe = authInstance.onAuthStateChanged(
         (user: User | null) => {
-          console.log("Auth: Auth state changed:", user ? `User authenticated: ${user.uid}` : "No user");
           setUserState(user);
           setLoadingState(false);
           
           // If user is authenticated, check/create their database record
           if (user) {
-            console.log("Auth: User authenticated, ensuring user exists in database");
             ensureUserExists(user);
           } else {
-            console.log("Auth: No user authenticated");
             setUserInitialized(false);
           }
         },
         (error: any) => {
-          console.error("Auth: Auth state change error:", error);
           setLoadingState(false);
           setUserInitialized(false);
         }
       );
     } catch (error) {
-      console.error("Auth: Error initializing Firebase Auth:", error);
       setLoadingState(false);
       setUserInitialized(false);
     }
     
     // Clean up subscription
     return () => {
-      console.log("Auth: Cleaning up auth state listener");
       unsubscribe();
     };
   }, []);
@@ -92,26 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Ensure the user exists in Firestore
   const ensureUserExists = async (user: User) => {
     try {
-      console.log("Auth: Ensuring user exists in Firestore", { userId: user.uid });
       const db = getFirebaseDb();
       
       // Test Firestore connection with a simple operation
       try {
-        console.log("Auth: Testing Firestore connection");
-        const testCollection = db.collection('test');
-        console.log("Auth: Firestore connection successful");
       } catch (firestoreError) {
-        console.error("Auth: Error connecting to Firestore:", firestoreError);
       }
       
       const userRef = doc(db, 'users', user.uid);
       
-      console.log("Auth: Fetching user document");
       const userDoc = await getDoc(userRef);
-      console.log("Auth: User document exists:", userDoc.exists());
       
       if (!userDoc.exists()) {
-        console.log("Auth: Creating new user record in Firestore");
         // Create a new user record
         const userData = {
           email: user.email,
@@ -128,16 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           highestStreak: 1, // Initialize highest streak
         };
         
-        console.log("Auth: New user data:", userData);
-        
         try {
           await setDoc(userRef, userData);
-          console.log("Auth: User record created successfully with initial streak of 1");
         } catch (setDocError) {
-          console.error("Auth: Error creating user document:", setDocError);
         }
       } else {
-        console.log("Auth: User record exists, updating last login");
         const userData = userDoc.data();
         const now = new Date();
         
@@ -145,19 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentStreak = userData.currentStreak ?? 0;
         const highestStreak = userData.highestStreak ?? 0;
         
-        console.log("Auth: Current streak values:", { currentStreak, highestStreak, lastLogin: userData.lastLogin });
-        
         // Calculate new streak using utility function
         const newStreak = calculateStreak(userData.lastLogin, currentStreak);
         
         // Update highest streak if current streak is higher
         const newHighestStreak = Math.max(newStreak, highestStreak);
-        
-        console.log("Auth: New streak values:", { 
-          newStreak, 
-          newHighestStreak, 
-          lastLogin: now.toISOString() 
-        });
         
         // Check if a milestone was reached
         const milestone = checkStreakMilestone(currentStreak, newStreak);
@@ -169,16 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             currentStreak: newStreak,
             highestStreak: newHighestStreak
           });
-          
-          console.log(`Auth: Updated streak in Firestore to ${newStreak} (highest: ${newHighestStreak})`);
         } catch (updateError) {
-          console.error("Auth: Error updating user document:", updateError);
         }
         
         // If a milestone was reached, award XP and tokens
         if (milestone) {
           const rewards = calculateStreakRewards(milestone);
-          console.log(`Auth: Milestone ${milestone} reached! Awarding ${rewards.xp} XP and ${rewards.tokens} tokens`);
           
           // Update user with rewards
           try {
@@ -193,16 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Show toast notification about milestone
             toast.success(`🎉 ${milestone} day streak achieved! +${rewards.xp} XP, +${rewards.tokens} tokens`);
           } catch (rewardsError) {
-            console.error("Auth: Error updating rewards:", rewardsError);
           }
         }
       }
       
       // Mark user as initialized
-      console.log("Auth: User initialization complete");
       setUserInitialized(true);
     } catch (error) {
-      console.error("Auth: Error ensuring user exists:", error);
       // Still mark as initialized to prevent infinite loops
       setUserInitialized(true);
     }
@@ -260,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           lastCalendarSync: new Date().toISOString(),
         });
       } catch (error) {
-        console.error('Error processing calendar event:', error);
         toast.error('Failed to add event to calendar');
       }
     };
@@ -276,7 +237,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         toast.success('Calendar sync completed');
       } catch (error) {
-        console.error('Error syncing calendar:', error);
         toast.error('Failed to sync calendar');
       }
     };

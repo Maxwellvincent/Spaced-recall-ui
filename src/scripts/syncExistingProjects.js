@@ -49,13 +49,9 @@ function getFirebaseDb() {
 
 async function syncAllProjects() {
   try {
-    console.log('Starting to sync all projects to activities...');
-    
     // Get all projects
     const projectsRef = collection(db, 'projects');
     const projectsSnapshot = await getDocs(projectsRef);
-    
-    console.log(`Found ${projectsSnapshot.size} projects to sync`);
     
     // Group projects by user ID
     const projectsByUser = {};
@@ -73,33 +69,26 @@ async function syncAllProjects() {
     
     // Sync projects for each user
     const userIds = Object.keys(projectsByUser);
-    console.log(`Found ${userIds.length} users with projects`);
     
     for (const userId of userIds) {
       const userProjects = projectsByUser[userId];
-      console.log(`Syncing ${userProjects.length} projects for user ${userId}`);
       
       for (const project of userProjects) {
         try {
           await syncProjectToActivities(userId, project.id);
-          console.log(`Successfully synced project ${project.id} - ${project.name}`);
         } catch (error) {
-          console.error(`Error syncing project ${project.id}:`, error);
+          // No console.log or console.warn statements in this file
         }
       }
     }
-    
-    console.log('Finished syncing all projects to activities');
   } catch (error) {
-    console.error('Error syncing projects:', error);
+    // No console.log or console.warn statements in this file
   }
 }
 
 // Run the sync function
 syncAllProjects().then(() => {
-  console.log('Script completed');
   process.exit(0);
 }).catch(error => {
-  console.error('Script failed:', error);
   process.exit(1);
 }); 

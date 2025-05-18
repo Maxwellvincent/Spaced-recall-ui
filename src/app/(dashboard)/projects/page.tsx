@@ -61,6 +61,7 @@ export default function ProjectsPage() {
     name: "",
     description: "",
     status: "planning" as const,
+    progressMethod: "manual" as 'manual' | 'tasks' | 'time',
   });
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -167,41 +168,34 @@ export default function ProjectsPage() {
 
   const themeStyles = getThemeStyles();
 
+  const fetchProjects = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const projectsQuery = query(
+        collection(db, "projects"),
+        where("userId", "==", user.uid)
+      );
+      const querySnapshot = await getDocs(projectsQuery);
+      const projectsList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Project[];
+      projectsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setProjects(projectsList);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      toast.error("Failed to load projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
       return;
     }
-
-    const fetchProjects = async () => {
-      if (!user) return;
-
-      try {
-        setLoading(true);
-        const projectsQuery = query(
-          collection(db, "projects"),
-          where("userId", "==", user.uid)
-        );
-        const querySnapshot = await getDocs(projectsQuery);
-        const projectsList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Project[];
-        
-        // Sort by creation date (newest first)
-        projectsList.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        
-        setProjects(projectsList);
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-        toast.error("Failed to load projects");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProjects();
   }, [user, authLoading, router]);
 
@@ -220,7 +214,8 @@ export default function ProjectsPage() {
         createdAt: new Date().toISOString(),
         userId: user.uid,
         progress: 0,
-        tasks: []
+        tasks: [],
+        progressMethod: newProject.progressMethod,
       };
 
       console.log("Project data:", projectData);
@@ -237,7 +232,8 @@ export default function ProjectsPage() {
       setNewProject({
         name: "",
         description: "",
-        status: "planning"
+        status: "planning",
+        progressMethod: "manual",
       });
       setIsAddDialogOpen(false);
       
@@ -277,6 +273,8 @@ export default function ProjectsPage() {
         console.error("Error syncing project to activities:", syncError);
         // Don't show error to user, as the project was still created successfully
       }
+
+      await fetchProjects(); // Refetch after add
     } catch (error) {
       console.error("Error adding project:", error);
       toast.error("Failed to add project");
@@ -300,6 +298,8 @@ export default function ProjectsPage() {
           // Don't show error to user, as the project was still deleted successfully
         }
       }
+
+      await fetchProjects(); // Refetch after delete
     } catch (error) {
       console.error("Error deleting project:", error);
       toast.error("Failed to delete project");
@@ -326,6 +326,8 @@ export default function ProjectsPage() {
           // Don't show error to user, as the project was still updated successfully
         }
       }
+
+      await fetchProjects(); // Refetch after status update
     } catch (error) {
       console.error("Error updating project status:", error);
       toast.error("Failed to update project status");
@@ -469,6 +471,8 @@ export default function ProjectsPage() {
           // Don't show error to user, as the task status was still updated successfully
         }
       }
+
+      await fetchProjects(); // Refetch after task update
     } catch (error) {
       console.error("Error toggling task completion:", error);
       toast.error("Failed to update task");
@@ -592,6 +596,8 @@ export default function ProjectsPage() {
 
       // Show success message
       toast.success(`Logged ${minutes} minutes and earned ${earnedXP} XP!`);
+
+      await fetchProjects(); // Refetch after time log
 
     } catch (error) {
       console.error("Error logging time:", error);
@@ -724,6 +730,8 @@ export default function ProjectsPage() {
           // Don't show error to user, as the task was still added successfully
         }
       }
+
+      await fetchProjects(); // Refetch after add
     } catch (error) {
       console.error("Error adding task:", error);
       toast.error("Failed to add task");
@@ -812,6 +820,8 @@ export default function ProjectsPage() {
           console.error("Error syncing project to activities:", syncError);
         }
       }
+
+      await fetchProjects(); // Refetch after task update
     } catch (error) {
       console.error("Error updating task:", error);
       toast.error("Failed to update task");
@@ -878,6 +888,8 @@ export default function ProjectsPage() {
           console.error("Error syncing project to activities:", syncError);
         }
       }
+
+      await fetchProjects(); // Refetch after task delete
     } catch (error) {
       console.error("Error deleting task:", error);
       toast.error("Failed to delete task");
@@ -1219,6 +1231,22 @@ export default function ProjectsPage() {
                     Completed
                   </button>
                 </div>
+              </div>
+              <div>
+                <label htmlFor="progress-method" className={`block text-sm font-medium ${themeStyles.textSecondary} mb-1`}>
+                  Progress Calculation Method
+                </label>
+                console.log('progress-method select theme:', theme);
+                <select
+                  id="progress-method"
+                  value={newProject.progressMethod}
+                  onChange={e => setNewProject({ ...newProject, progressMethod: e.target.value as any })}
+                  className={`border rounded px-2 py-1 text-sm ${theme === 'dbz' ? 'bg-yellow-950 text-yellow-100 border-yellow-600' : 'bg-background'}`}
+                >
+                  <option value="manual">Manual</option>
+                  <option value="tasks">Task Completion</option>
+                  <option value="time">Time Logged</option>
+                </select>
               </div>
             </div>
             <DialogFooter>

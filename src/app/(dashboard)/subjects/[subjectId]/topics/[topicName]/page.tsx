@@ -856,243 +856,102 @@ const handleDeleteTopic = async () => {
             </div>
 
             {/* Tabs */}
-            <Tabs
-              defaultValue="overview"
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as 'overview' | 'sessions' | 'concepts')}
-              className="mt-6"
-            >
-              <TabsList className={`${themeStyles.cardBg} ${themeStyles.border}`}>
-                <TabsTrigger 
-                  value="overview" 
-                  className={`${activeTab === 'overview' ? themeStyles.tabActive : ''} ${themeStyles.textPrimary}`}
-                >
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="sessions" 
-                  className={`${activeTab === 'sessions' ? themeStyles.tabActive : ''} ${themeStyles.textPrimary}`}
-                >
-                  Study Sessions
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="concepts" 
-                  className={`${activeTab === 'concepts' ? themeStyles.tabActive : ''} ${themeStyles.textPrimary}`}
-                >
-                  Concepts
-                </TabsTrigger>
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="sessions">Study Sessions</TabsTrigger>
+                {!topic.isHabitBased && <TabsTrigger value="concepts">Concepts</TabsTrigger>}
               </TabsList>
-              
+
               <TabsContent value="overview" className="mt-6">
                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-6`}>
                   <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="bg-slate-800/50 rounded-lg p-6">
-              <TabsList className="bg-slate-800 mb-6">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="sessions">Study Sessions</TabsTrigger>
-                {!topic.isHabitBased && (
-                  <TabsTrigger value="concepts">Concepts</TabsTrigger>
-                )}
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-8">
-                {/* Progress Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-slate-800/80 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Clock className="h-5 w-5 text-blue-400" />
-                      <h3 className="text-lg font-medium text-slate-100">Study Time</h3>
+                    <div className="flex flex-col md:flex-row justify-between">
+                      <div className="mb-4 md:mb-0">
+                        <h2 className={`text-xl font-semibold mb-2 ${themeStyles.textPrimary}`}>Topic Overview</h2>
+                        <p className={themeStyles.textSecondary}>{topic.description || "No description provided."}</p>
+                      </div>
+                      <div className="flex flex-col md:items-end">
+                        <div className="flex items-center mb-2">
+                          <Award className={`h-5 w-5 mr-2 ${themeStyles.accent}`} />
+                          <span className={themeStyles.textSecondary}>Mastery Level: </span>
+                          <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{topic.masteryLevel || 0}%</span>
+                        </div>
+                        <div className="flex items-center mb-2">
+                          <Brain className={`h-5 w-5 mr-2 ${themeStyles.accent}`} />
+                          <span className={themeStyles.textSecondary}>XP Gained: </span>
+                          <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{topic.xp || 0}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className={`h-5 w-5 mr-2 ${themeStyles.accent}`} />
+                          <span className={themeStyles.textSecondary}>Study Time: </span>
+                          <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{calculateTotalStudyTime()} min</span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-slate-100">{topic.totalStudyTime || 0} mins</p>
-                  </div>
-                  <div className="bg-slate-800/80 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Award className="h-5 w-5 text-green-400" />
-                      <h3 className="text-lg font-medium text-slate-100">Mastery</h3>
+                    <div className="mt-4 w-full bg-slate-700 rounded-full h-2">
+                      <div 
+                        className={`${themeStyles.progressBar} rounded-full h-2 transition-all duration-500`}
+                        style={{ width: `${topic.masteryLevel || 0}%` }}
+                      />
                     </div>
-                    <p className="text-2xl font-bold text-slate-100">{Math.round(topic.masteryLevel || 0)}%</p>
-                  </div>
-                  <div className="bg-slate-800/80 rounded-lg p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Brain className="h-5 w-5 text-purple-400" />
-                      <h3 className="text-lg font-medium text-slate-100">Concepts</h3>
-                    </div>
-                    <p className="text-2xl font-bold text-slate-100">{topic.concepts?.length || 0}</p>
                   </div>
                 </div>
+              </TabsContent>
 
-                {/* Areas of Focus */}
-                {topic.concepts && topic.concepts.length > 0 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Weak Areas */}
-                    <div className="bg-slate-800/80 rounded-lg p-6">
-                      <div className="flex items-center gap-3 mb-6">
-                        <TrendingDown className="h-5 w-5 text-red-400" />
-                        <h3 className="text-lg font-medium text-slate-100">Areas Needing Review</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {topic.concepts
-                          .filter(concept => (concept.masteryLevel || 0) < 70)
-                          .sort((a, b) => (a.masteryLevel || 0) - (b.masteryLevel || 0))
-                          .slice(0, 3)
-                          .map(concept => (
-                            <div
-                              key={concept.name}
-                              onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/concepts/${encodeURIComponent(concept.name)}`)}
-                              className="p-3 rounded-lg border border-border/50 bg-slate-700/50 hover:bg-slate-700 transition-colors cursor-pointer group"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-sm text-slate-200 group-hover:text-blue-400 transition-colors line-clamp-1">
-                                  {concept.name}
-                                </h4>
-                                <span className={cn(
-                                  "text-xs font-medium",
-                                  concept.masteryLevel < 40 ? "text-red-400" :
-                                  "text-yellow-400"
-                                )}>
-                                  {Math.round(concept.masteryLevel || 0)}%
-                                </span>
-                              </div>
-                              <div className="w-full bg-slate-600 rounded-full h-1">
-                                <div
-                                  className={cn(
-                                    "rounded-full h-1",
-                                    concept.masteryLevel < 40 ? "bg-red-500" : "bg-yellow-500"
-                                  )}
-                                  style={{ width: `${concept.masteryLevel || 0}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        {topic.concepts.filter(c => (c.masteryLevel || 0) < 70).length === 0 && (
-                          <p className="text-slate-400 text-center py-4">
-                            No concepts currently need review! 🎉
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Strong Areas */}
-                    <div className="bg-slate-800/80 rounded-lg p-6">
-                      <div className="flex items-center gap-3 mb-6">
-                        <TrendingUp className="h-5 w-5 text-emerald-400" />
-                        <h3 className="text-lg font-medium text-slate-100">Strong Areas</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {topic.concepts
-                          .filter(concept => (concept.masteryLevel || 0) >= 70)
-                          .sort((a, b) => (b.masteryLevel || 0) - (a.masteryLevel || 0))
-                          .slice(0, 3)
-                          .map(concept => (
-                            <div
-                              key={concept.name}
-                              onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/concepts/${encodeURIComponent(concept.name)}`)}
-                              className="p-3 rounded-lg border border-border/50 bg-slate-700/50 hover:bg-slate-700 transition-colors cursor-pointer group"
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-sm text-slate-200 group-hover:text-blue-400 transition-colors line-clamp-1">
-                                  {concept.name}
-                                </h4>
-                                <span className="text-xs font-medium text-emerald-400">
-                                  {Math.round(concept.masteryLevel || 0)}%
-                                </span>
-                              </div>
-                              <div className="w-full bg-slate-600 rounded-full h-1">
-                                <div
-                                  className="rounded-full h-1 bg-emerald-500"
-                                  style={{ width: `${concept.masteryLevel || 0}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        {topic.concepts.filter(c => (c.masteryLevel || 0) >= 70).length === 0 && (
-                          <p className="text-slate-400 text-center py-4">
-                            Keep studying to develop strong areas! 💪
-                          </p>
-                        )}
-                      </div>
-                    </div>
+              <TabsContent value="sessions" className="mt-6">
+                <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className={`text-xl font-semibold ${themeStyles.textPrimary}`}>Study Sessions</h2>
+                    <Button                         onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/sessions/new`)}                        className={themeStyles.primary}                      >                        <Plus className="h-4 w-4 mr-2" />                        Add Session                      </Button>
                   </div>
-                )}
-
-                {/* Recent Activity */}
-                <div className="bg-slate-800/80 rounded-lg p-6">
-                  <h3 className="text-lg font-medium text-slate-100 mb-6">Recent Activity</h3>
+                  
                   {topic.studySessions && topic.studySessions.length > 0 ? (
-                    <div className="space-y-4">
-                      {topic.studySessions.slice(0, 5).map((session) => (
-                        <div key={session.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg p-4">
-                          <div>
-                            <p className="font-medium text-slate-200">{activityTypes[session.activityType]?.name || 'Study'}</p>
-                            <p className="text-sm text-slate-400">
-                              {format(new Date(session.date), 'MMM d, yyyy')} • {session.duration} mins
-                            </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {topic.studySessions.map((session) => (
+                        <div 
+                          key={session.id} 
+                          className={`${themeStyles.itemCard} p-4 rounded-lg cursor-pointer transition-colors ${themeStyles.border}`}
+                          onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/sessions/${encodeURIComponent(session.id)}`)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <h3 className={`font-medium ${themeStyles.textPrimary}`}>{session.notes || 'Untitled Session'}</h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProgress('session', session.id);
+                              }}
+                              className="p-1 rounded-md hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                            </button>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-blue-400">+{session.xpGained} XP</p>
-                            <p className="text-sm text-green-400">+{session.masteryGained}% Mastery</p>
+                          <div className="mt-2">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className={themeStyles.textMuted}>Duration</span>
+                              <span className={themeStyles.textSecondary}>{session.duration} min</span>
+                            </div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className={themeStyles.textMuted}>XP</span>
+                              <span className={themeStyles.textSecondary}>{session.xpGained || 0}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-400">No study sessions yet</p>
+                    <div className={`text-center py-8 ${themeStyles.textMuted}`}>
+                      <p>No sessions added yet.</p>
+                      <Button 
+                        onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/sessions/new`)}
+                        className={`mt-4 ${themeStyles.primary}`}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Your First Session
+                      </Button>
+                    </div>
                   )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="sessions" className="space-y-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-slate-100">Study Sessions</h2>
-                  <button
-                    onClick={handleStartAddSession}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Session
-                  </button>
-                </div>
-
-                {topic.studySessions && topic.studySessions.length > 0 ? (
-                  <div className="space-y-4">
-                    {topic.studySessions.map((session) => (
-                      <div key={session.id} className="bg-slate-800/80 rounded-lg p-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="font-medium text-slate-200">{activityTypes[session.activityType]?.name || 'Study'}</p>
-                            <p className="text-sm text-slate-400">
-                              {format(new Date(session.date), 'MMM d, yyyy')} • {session.duration} mins • 
-                              {difficultyLevels[session.difficulty]?.name || 'Medium'}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleEditSession(session.id)}
-                              className="p-2 hover:bg-slate-700 rounded-lg"
-                            >
-                              <Edit2 className="h-4 w-4 text-slate-400" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProgress('session', session.id)}
-                              className="p-2 hover:bg-slate-700 rounded-lg"
-                            >
-                              <Trash2 className="h-4 w-4 text-slate-400" />
-                            </button>
-                          </div>
-                        </div>
-                        {session.notes && (
-                          <p className="text-sm text-slate-400 mt-4">{session.notes}</p>
-                        )}
-                        <div className="flex items-center gap-4 mt-4">
-                          <p className="text-sm text-blue-400">+{session.xpGained} XP</p>
-                          <p className="text-sm text-green-400">+{session.masteryGained}% Mastery</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-slate-400">No study sessions recorded yet</p>
-                )}
               </TabsContent>
 
               {!topic.isHabitBased && (
@@ -1100,13 +959,7 @@ const handleDeleteTopic = async () => {
                   <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
                     <div className="flex justify-between items-center mb-6">
                       <h2 className={`text-xl font-semibold ${themeStyles.textPrimary}`}>Concepts</h2>
-                      <Button 
-                        onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/concepts/new`)}
-                        className={themeStyles.primary}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Concept
-                      </Button>
+                      <Button                         onClick={() => router.push(`/subjects/${encodeURIComponent(subject?.name || '')}/topics/${encodeURIComponent(topic.name)}/concepts/new`)}                        className={themeStyles.primary}                      >                        <Plus className="h-4 w-4 mr-2" />                        Add Concept                      </Button>
                     </div>
                     
                     {topic.concepts && topic.concepts.length > 0 ? (

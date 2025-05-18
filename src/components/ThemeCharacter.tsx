@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentAvatar, getThemeConfig } from '@/utils/themeUtils';
+import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
 
 interface ThemeCharacterProps {
   theme: string;
@@ -98,7 +99,14 @@ export function ThemeCharacter({ theme, level, xp, isLevelUp = false }: ThemeCha
       
       <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-center">
         <div className="text-sm font-medium text-gray-200">{avatar.name}</div>
-        <div className="text-xs text-gray-400">Level {level}</div>
+        {theme.toLowerCase() === 'dbz' ? (
+          <>
+            <div className="text-xs font-bold text-yellow-400">Power Level: {getDbzPowerLevel(xp).toLocaleString()}</div>
+            <div className="text-[10px] font-bold text-yellow-300 mt-0.5">{getDbzMilestone(getDbzPowerLevel(xp))}</div>
+          </>
+        ) : (
+          <div className="text-xs text-gray-400">Level {level}</div>
+        )}
       </div>
     </div>
   );

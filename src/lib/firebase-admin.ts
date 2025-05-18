@@ -7,6 +7,43 @@ let firebaseAdminInitialized = false;
 let adminFirestore = null;
 let adminAuth = null;
 
+// Initialize Firebase Admin SDK for API routes
+export function initAdmin() {
+  try {
+    if (getApps().length > 0) {
+      return;
+    }
+
+    let serviceAccount;
+    
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      } catch (parseError) {
+        console.error('Failed to parse Firebase service account from environment variable:', parseError);
+        throw new Error('Invalid service account JSON in environment variable');
+      }
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    } else {
+      try {
+        serviceAccount = require('../../service-account.json');
+      } catch (fileError) {
+        console.error('Failed to load service-account.json:', fileError);
+        throw new Error('No Firebase service account credentials available');
+      }
+    }
+
+    initializeApp({
+      credential: cert(serviceAccount),
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || undefined,
+    });
+  } catch (error) {
+    console.error('Error initializing Firebase Admin:', error);
+    throw error;
+  }
+}
+
 // Initialize Firebase Admin SDK for server-side operations
 export async function initializeFirebaseAdmin() {
   // Return if already initialized

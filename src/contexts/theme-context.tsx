@@ -19,7 +19,6 @@ const getLocalStorageItem = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
   } catch (error) {
-    console.error('Error accessing localStorage:', error);
     return null;
   }
 };
@@ -31,7 +30,6 @@ const setLocalStorageItem = (key: string, value: string): void => {
   try {
     localStorage.setItem(key, value);
   } catch (error) {
-    console.error('Error setting localStorage:', error);
   }
 };
 
@@ -49,7 +47,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!isClient) return;
     
     const savedTheme = getLocalStorageItem('userTheme') as ThemeType;
-    console.log('ThemeContext: Loading theme from localStorage:', savedTheme);
     
     if (savedTheme && ['dbz', 'naruto', 'hogwarts', 'classic'].includes(savedTheme)) {
       setThemeState(savedTheme);
@@ -58,7 +55,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Wrapper function to set theme and save to localStorage
   const setTheme = (newTheme: ThemeType) => {
-    console.log('ThemeContext: Setting theme to:', newTheme);
     setThemeState(newTheme);
     
     if (isClient) {

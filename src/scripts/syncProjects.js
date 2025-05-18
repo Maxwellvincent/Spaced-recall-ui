@@ -1,64 +1,43 @@
-// Script to sync existing projects to activities
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc } = require('firebase/firestore');
+// Script to sync existing projects to activities using Admin SDK
+const admin = require('firebase-admin');
 const { v4: uuidv4 } = require('uuid');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: '.env.local' });
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Function to get Firebase DB
-function getFirebaseDb() {
-  return db;
-}
+// Initialize Firebase Admin SDK
+const serviceAccount = require(path.resolve(__dirname, '../../service-account.json'));
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+const db = admin.firestore();
 
 // Sync project to activities function
 async function syncProjectToActivities(userId, projectId) {
   try {
     // Get the project from the projects collection
-    const projectRef = doc(db, "projects", projectId);
-    const projectDoc = await getDoc(projectRef);
-    
-    if (!projectDoc.exists()) {
-      throw new Error("Project not found");
+    const projectRef = db.collection('projects').doc(projectId);
+    const projectDoc = await projectRef.get();
+    if (!projectDoc.exists) {
+      throw new Error('Project not found');
     }
-    
     const projectData = projectDoc.data();
-    
     // Check if this project already exists in activities collection
-    const activitiesRef = collection(db, "activities");
-    const q = query(
-      activitiesRef, 
-      where("userId", "==", userId),
-      where("sourceProjectId", "==", projectId)
-    );
-    
-    const snapshot = await getDocs(q);
+    const activitiesRef = db.collection('activities');
+    const q = activitiesRef
+      .where('userId', '==', userId)
+      .where('sourceProjectId', '==', projectId);
+    const snapshot = await q.get();
     let activityId;
-    
     if (snapshot.empty) {
       // Create a new activity for this project
       activityId = uuidv4();
-      
       const activityData = {
         id: activityId,
-        type: "project",
+        type: 'project',
         name: projectData.name,
-        description: projectData.description || "",
+        description: projectData.description || '',
         status: projectData.status,
-        priority: "medium", // Default priority
+        priority: projectData.priority || 'medium',
         progress: projectData.progress || 0,
         userId: userId,
         createdAt: projectData.createdAt,
@@ -69,115 +48,85 @@ async function syncProjectToActivities(userId, projectId) {
         todos: [], // Activities has its own todo structure
         milestones: [], // Convert tasks to milestones
       };
-      
       // Convert project tasks to milestones if they exist
       if (projectData.tasks && Array.isArray(projectData.tasks)) {
         activityData.milestones = projectData.tasks.map(task => ({
           id: task.id,
           name: task.title,
-          description: "",
+          description: '',
           completed: task.completed,
-          completedAt: task.completed ? new Date().toISOString() : undefined,
+          ...(task.completed ? { completedAt: new Date().toISOString() } : {})
         }));
       }
-      
       // Save to activities collection
-      await setDoc(doc(db, "activities", activityId), activityData);
-      console.log(`Created new activity ${activityId} for project ${projectId}`);
+      await db.collection('activities').doc(activityId).set(activityData);
     } else {
       // Update existing activity
       const activityDoc = snapshot.docs[0];
       activityId = activityDoc.id;
-      
       const existingData = activityDoc.data();
-      
       // Update basic fields
-      await setDoc(doc(db, "activities", activityId), {
+      await db.collection('activities').doc(activityId).set({
         ...existingData,
         name: projectData.name,
-        description: projectData.description || "",
+        description: projectData.description || '',
         status: projectData.status,
         progress: projectData.progress || 0,
+        priority: projectData.priority || existingData.priority || 'medium',
       }, { merge: true });
-      
       // Update milestones based on tasks
       if (projectData.tasks && Array.isArray(projectData.tasks)) {
         const milestones = projectData.tasks.map(task => ({
           id: task.id,
           name: task.title,
-          description: "",
+          description: '',
           completed: task.completed,
-          completedAt: task.completed ? new Date().toISOString() : undefined,
+          ...(task.completed ? { completedAt: new Date().toISOString() } : {})
         }));
-        
-        await setDoc(doc(db, "activities", activityId), {
-          milestones
-        }, { merge: true });
+        await db.collection('activities').doc(activityId).set({ milestones }, { merge: true });
       }
-      
-      console.log(`Updated existing activity ${activityId} for project ${projectId}`);
     }
-    
     return activityId;
   } catch (error) {
-    console.error("Error syncing project to activities:", error);
     throw error;
   }
 }
 
 async function syncAllProjects() {
   try {
-    console.log('Starting to sync all projects to activities...');
-    
     // Get all projects
-    const projectsRef = collection(db, 'projects');
-    const projectsSnapshot = await getDocs(projectsRef);
-    
-    console.log(`Found ${projectsSnapshot.size} projects to sync`);
-    
+    const projectsSnapshot = await db.collection('projects').get();
+    const allProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     // Group projects by user ID
     const projectsByUser = {};
-    
     projectsSnapshot.forEach(doc => {
       const project = { id: doc.id, ...doc.data() };
       const userId = project.userId;
-      
       if (!projectsByUser[userId]) {
         projectsByUser[userId] = [];
       }
-      
       projectsByUser[userId].push(project);
     });
-    
     // Sync projects for each user
     const userIds = Object.keys(projectsByUser);
-    console.log(`Found ${userIds.length} users with projects`);
-    
     for (const userId of userIds) {
       const userProjects = projectsByUser[userId];
-      console.log(`Syncing ${userProjects.length} projects for user ${userId}`);
-      
       for (const project of userProjects) {
         try {
           await syncProjectToActivities(userId, project.id);
-          console.log(`Successfully synced project ${project.id} - ${project.name}`);
         } catch (error) {
-          console.error(`Error syncing project ${project.id}:`, error);
+          throw error;
         }
       }
     }
-    
-    console.log('Finished syncing all projects to activities');
   } catch (error) {
-    console.error('Error syncing projects:', error);
+    throw error;
   }
 }
 
 // Run the sync function
 syncAllProjects().then(() => {
-  console.log('Script completed');
   process.exit(0);
 }).catch(error => {
-  console.error('Script failed:', error);
   process.exit(1);
 }); 

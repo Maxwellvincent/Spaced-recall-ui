@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
   CheckCircle, Clock, Trash2, Edit, Calendar, AlertCircle, 
-  Loader2, Milestone, FolderKanban, BarChart3 
+  Loader2, Milestone, FolderKanban, BarChart3, ListChecks 
 } from "lucide-react";
 import Link from "next/link";
 import { format, formatDistanceToNow, isPast } from "date-fns";
+import { useRouter } from "next/navigation";
+import clsx from "clsx";
 
 interface ProjectListProps {
   projects: Project[];
@@ -24,6 +26,8 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
   const [xpGained, setXpGained] = useState<{ [id: string]: number }>({});
   const [progressValue, setProgressValue] = useState<{ [id: string]: number }>({});
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const [expandedWorkItems, setExpandedWorkItems] = useState<string | null>(null);
+  const router = useRouter();
   
   const handleUpdateProgress = async (id: string) => {
     try {
@@ -135,7 +139,7 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
       {activeProjects.length > 0 && (
         <div>
           <h3 className="text-lg font-medium text-slate-200 mb-4">Active Projects</h3>
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {activeProjects.map(project => {
               const isPastDue = project.dueDate && isPast(new Date(project.dueDate));
               const isExpanded = expandedProject === project.id;
@@ -143,18 +147,21 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
               const completedMilestones = project.milestones.filter(m => m.completed);
               
               return (
-                <Card 
-                  key={project.id} 
-                  className={`bg-slate-950 border-slate-800 ${
-                    isPastDue ? 'border-l-4 border-l-red-500' : ''
-                  }`}
+                <Card
+                  key={project.id}
+                  className={clsx(
+                    "bg-slate-950 border-slate-800 cursor-pointer transition-all duration-200",
+                    "aspect-square h-64 w-full flex flex-col justify-between overflow-hidden hover:scale-105 hover:shadow-2xl hover:border-blue-500",
+                    isPastDue ? "border-l-4 border-l-red-500" : ""
+                  )}
+                  onClick={() => router.push(`/projects/${project.sourceProjectId || project.id}`)}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg text-slate-100 flex items-center">
+                      <div className="text-lg text-slate-100 flex items-center truncate">
                         <FolderKanban className="h-5 w-5 mr-2 text-blue-400" />
-                        {project.name}
-                      </CardTitle>
+                        <span className="truncate max-w-[8rem]">{project.name}</span>
+                      </div>
                       <Badge 
                         variant={
                           project.priority === 'low' ? 'outline' : 
@@ -165,7 +172,7 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
                         {project.priority}
                       </Badge>
                     </div>
-                    <div className="flex gap-2 text-xs text-slate-400 mt-1">
+                    <div className="flex gap-2 text-xs text-slate-400 mt-1 flex-wrap">
                       <span className="flex items-center">
                         <BarChart3 className="h-3 w-3 mr-1" />
                         {project.status}
@@ -177,21 +184,19 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
                         </span>
                       )}
                       {project.dueDate && (
-                        <span className={`flex items-center ${isPastDue ? 'text-red-400' : ''}`}>
+                        <span className={`flex items-center ${isPastDue ? 'text-red-400' : ''}`}> 
                           <Clock className="h-3 w-3 mr-1" />
                           Due: {format(new Date(project.dueDate), 'MMM d')}
                         </span>
                       )}
                     </div>
                   </CardHeader>
-                  
-                  <CardContent>
+                  <CardContent className="flex-1 flex flex-col justify-between p-2">
                     {project.description && (
-                      <p className="text-sm text-slate-300 mb-4">{project.description}</p>
+                      <p className="text-sm text-slate-300 mb-2 line-clamp-2">{project.description}</p>
                     )}
-                    
-                    <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
+                    <div className="mb-2">
+                      <div className="flex justify-between items-center mb-1">
                         <span className="text-sm text-slate-300">Progress</span>
                         <span className="text-sm font-medium text-slate-300">
                           {project.progress}%
@@ -203,135 +208,14 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
                         indicatorClassName="bg-blue-500"
                       />
                     </div>
-                    
-                    {updatingId === project.id && !xpGained[project.id] && (
-                      <div className="mb-4">
-                        <label className="text-xs text-slate-400 block mb-1">
-                          Update progress (0-100%):
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            className="flex-1 px-2 py-1 text-sm bg-slate-900 border border-slate-700 rounded text-slate-200"
-                            placeholder={project.progress.toString()}
-                            value={progressValue[project.id] || project.progress}
-                            onChange={(e) => handleProgressChange(project.id, e.target.value)}
-                            autoFocus
-                          />
-                          <Button 
-                            size="sm"
-                            onClick={() => handleUpdateProgress(project.id)}
-                          >
-                            Update
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {xpGained[project.id] && (
-                      <div className="mb-4 text-center animate-pulse">
-                        <span className="text-emerald-400 font-semibold">
-                          +{xpGained[project.id]} XP
-                        </span>
-                      </div>
-                    )}
-                    
-                    {project.milestones.length > 0 && (
-                      <div className="mt-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => setExpandedProject(isExpanded ? null : project.id)}
-                          className="mb-2 w-full flex justify-between"
-                        >
-                          <span className="flex items-center">
-                            <Milestone className="h-4 w-4 mr-2" />
-                            Milestones ({completedMilestones.length}/{project.milestones.length})
-                          </span>
-                          <span>{isExpanded ? '▲' : '▼'}</span>
-                        </Button>
-                        
-                        {isExpanded && (
-                          <div className="space-y-3 mt-3 pl-2 border-l-2 border-slate-800">
-                            {pendingMilestones.length > 0 && (
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-slate-300">Pending</h4>
-                                {pendingMilestones.map(milestone => (
-                                  <div 
-                                    key={milestone.id} 
-                                    className="bg-slate-900/50 p-3 rounded-md border border-slate-800"
-                                  >
-                                    <div className="flex justify-between items-start mb-1">
-                                      <span className="text-sm font-medium text-slate-200">
-                                        {milestone.name}
-                                      </span>
-                                      {milestone.dueDate && (
-                                        <span className={`text-xs ${
-                                          isPast(new Date(milestone.dueDate)) ? 'text-red-400' : 'text-slate-400'
-                                        }`}>
-                                          Due: {format(new Date(milestone.dueDate), 'MMM d')}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {milestone.description && (
-                                      <p className="text-xs text-slate-400 mb-2">{milestone.description}</p>
-                                    )}
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      className="mt-1 w-full"
-                                      onClick={() => handleCompleteMilestone(project.id, milestone.id)}
-                                      disabled={!!updatingId}
-                                    >
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      Complete Milestone
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {completedMilestones.length > 0 && (
-                              <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-slate-300">Completed</h4>
-                                {completedMilestones.map(milestone => (
-                                  <div 
-                                    key={milestone.id} 
-                                    className="bg-slate-900/30 p-3 rounded-md border border-slate-800"
-                                  >
-                                    <div className="flex justify-between items-start mb-1">
-                                      <span className="text-sm font-medium text-slate-300 flex items-center">
-                                        <CheckCircle className="h-3 w-3 mr-1 text-emerald-400" />
-                                        {milestone.name}
-                                      </span>
-                                      {milestone.completedAt && (
-                                        <span className="text-xs text-slate-400">
-                                          {formatDistanceToNow(new Date(milestone.completedAt), { addSuffix: true })}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {milestone.description && (
-                                      <p className="text-xs text-slate-500">{milestone.description}</p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </CardContent>
-                  
-                  <CardFooter>
-                    <div className="flex justify-between w-full">
+                  <CardFooter className="p-2 pt-0 flex flex-col gap-2">
+                    <div className="flex justify-between w-full gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-red-400 hover:text-red-300 hover:bg-red-950"
-                        onClick={() => handleDelete(project.id)}
+                        onClick={e => { e.stopPropagation(); handleDelete(project.id); }}
                         disabled={!!deletingId || !!updatingId}
                       >
                         {deletingId === project.id ? (
@@ -346,44 +230,17 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
                           </span>
                         )}
                       </Button>
-                      
-                      <div className="flex gap-2">
-                        <Link href={`/activities/edit/project/${project.id}`}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-950"
-                            disabled={!!deletingId || !!updatingId}
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                        </Link>
-                        
-                        {updatingId === project.id ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setUpdatingId(null)}
-                            disabled={!!xpGained[project.id]}
-                          >
-                            Cancel
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              setProgressValue({ ...progressValue, [project.id]: project.progress });
-                              setUpdatingId(project.id);
-                            }}
-                            disabled={!!updatingId || !!deletingId || project.progress === 100}
-                          >
-                            <BarChart3 className="h-3 w-3 mr-1" />
-                            Update Progress
-                          </Button>
-                        )}
-                      </div>
+                      <Link href={`/activities/edit/project/${project.id}`} onClick={e => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-950"
+                          disabled={!!deletingId || !!updatingId}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      </Link>
                     </div>
                   </CardFooter>
                 </Card>

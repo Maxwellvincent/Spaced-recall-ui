@@ -8,7 +8,7 @@ import { useTheme } from "@/contexts/theme-context";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
-import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain, BarChart, Menu, X, CheckCircle } from "lucide-react";
+import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain, BarChart, Menu, X, CheckCircle, ChevronDown, Plus } from "lucide-react";
 import { ThemedAvatar } from "./ui/themed-components";
 import { themeConfig } from "@/config/themeConfig";
 
@@ -21,8 +21,7 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true);
   const [userTheme, setUserTheme] = useState(theme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  console.log("Mobile menu state:", mobileMenuOpen); // Debug log
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch user's XP and theme from Firestore when the user changes
@@ -103,9 +102,40 @@ export default function Navbar() {
     { href: "/", label: "Home", icon: <Home className="h-5 w-5" /> },
     { href: "/dashboard", label: "Dashboard", icon: <Home className="h-5 w-5" /> },
     { href: "/subjects", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
-    { href: "/activities", label: "Activities", icon: <CheckCircle className="h-5 w-5" /> },
-    { href: "/todos", label: "Todos", icon: <CheckCircle className="h-5 w-5" /> },
-    { href: "/projects", label: "Projects", icon: <BarChart className="h-5 w-5" /> },
+    { 
+      label: "Activities", 
+      icon: <CheckCircle className="h-5 w-5" />, 
+      children: [
+        { href: "/activities", label: "All Activities", icon: <CheckCircle className="h-5 w-5" /> },
+        {
+          label: "Habits",
+          icon: <BookOpen className="h-5 w-5" />,
+          children: [
+            { href: "/activities?tab=habits", label: "Habits (Tab)", icon: <BookOpen className="h-5 w-5" /> },
+            { href: "/habits", label: "All Habits", icon: <BookOpen className="h-5 w-5" /> },
+          ]
+        },
+        {
+          label: "Todos",
+          icon: <CheckCircle className="h-5 w-5" />,
+          children: [
+            { href: "/activities?tab=todos", label: "Todos (Tab)", icon: <CheckCircle className="h-5 w-5" /> },
+            { href: "/todos", label: "All Todos", icon: <CheckCircle className="h-5 w-5" /> },
+          ]
+        },
+        {
+          label: "Projects",
+          icon: <BarChart className="h-5 w-5" />,
+          children: [
+            { href: "/activities?tab=projects", label: "Projects (Tab)", icon: <BarChart className="h-5 w-5" /> },
+            { href: "/projects", label: "All Projects", icon: <BarChart className="h-5 w-5" /> },
+          ]
+        },
+        { type: "separator" },
+        { href: "/activities/quick-timer", label: "Quick Timer", icon: <Clock className="h-5 w-5" /> },
+        { href: "/activities/new/timed", label: "New Timed Activity", icon: <Plus className="h-5 w-5" /> },
+      ]
+    },
     { href: "/study-logger", label: "Study Logger", icon: <Clock className="h-5 w-5" /> },
     { href: "/study-overview", label: "Study Overview", icon: <BarChart className="h-5 w-5" /> },
     { href: "/spaced-recall", label: "Spaced Recall", icon: <Brain className="h-5 w-5" /> },
@@ -127,8 +157,21 @@ export default function Navbar() {
   };
 
   const toggleMobileMenu = () => {
-    console.log("Toggling mobile menu, current state:", mobileMenuOpen);
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const toggleDropdown = (label: string) => {
+    if (activeDropdown === label) {
+      setActiveDropdown(null);
+    } else {
+      setActiveDropdown(label);
+    }
+  };
+
+  const handleNavigation = (href: string) => {
+    router.push(href);
+    setActiveDropdown(null);
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -170,14 +213,87 @@ export default function Navbar() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
-              {user && navLinks.slice(1, 8).map((link, index) => (
-                <Link
-                  key={index}
-                  href={link.href}
-                  className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-blue-300 transition"
-                >
-                  {link.label}
-                </Link>
+              {user && navLinks.slice(1, 7).map((link, index) => (
+                link.children ? (
+                  <div 
+                    key={index} 
+                    className="relative group"
+                    onMouseEnter={() => setActiveDropdown(link.label)}
+                    onMouseLeave={() => setActiveDropdown(null)}
+                  >
+                    <button 
+                      className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-blue-300 transition flex items-center"
+                    >
+                      {link.label}
+                      <ChevronDown className={`ml-1 h-4 w-4 transition-transform duration-200 ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
+                    </button>
+                    <div 
+                      className={`
+                        absolute left-0 mt-0 w-56 rounded-md shadow-lg bg-slate-800 ring-1 ring-black ring-opacity-5
+                        transition-all duration-200 origin-top-left
+                        ${activeDropdown === link.label ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}
+                      `}
+                    >
+                      {/* Add a pseudo-element to cover the gap */}
+                      <div className="absolute h-2 w-full -top-2"></div>
+                      <div className="py-1">
+                        {link.children.map((childLink, childIndex) => (
+                          childLink.type === "separator" ? (
+                            <div key={childIndex} className="h-px bg-slate-700 my-1" />
+                          ) : childLink.children ? (
+                            <div key={childIndex} className="relative">
+                              <div className="group/menu relative">
+                                <button
+                                  className="flex items-center w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
+                                  onMouseEnter={e => e.stopPropagation()}
+                                >
+                                  {childLink.icon && <span className="mr-2">{childLink.icon}</span>}
+                                  {childLink.label}
+                                  <ChevronDown className="ml-1 h-3 w-3" />
+                                </button>
+                                <div className="absolute left-full top-0 mt-0 w-48 rounded-md shadow-lg bg-slate-800 ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-50">
+                                  <div className="py-1">
+                                    {childLink.children.map((subLink, subIndex) => (
+                                      <button
+                                        key={subIndex}
+                                        onClick={() => handleNavigation(subLink.href)}
+                                        className="block w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
+                                      >
+                                        <div className="flex items-center">
+                                          {subLink.icon && <span className="mr-2">{subLink.icon}</span>}
+                                          {subLink.label}
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              key={childIndex}
+                              onClick={() => handleNavigation(childLink.href)}
+                              className="block w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
+                            >
+                              <div className="flex items-center">
+                                {childLink.icon && <span className="mr-2">{childLink.icon}</span>}
+                                {childLink.label}
+                              </div>
+                            </button>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    key={index}
+                    href={link.href}
+                    className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-blue-300 transition"
+                  >
+                    {link.label}
+                  </Link>
+                )
               ))}
               
               {user ? (
@@ -216,64 +332,87 @@ export default function Navbar() {
           <div className="bg-slate-900 w-64 h-full overflow-y-auto">
             <div className="p-4">
               {navLinks.map((link, index) => (
-                <Link
-                  key={index}
-                  href={link.href}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
-                    {link.icon}
+                link.children ? (
+                  <div key={index}>
+                    <button
+                      className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
+                      onClick={() => toggleDropdown(link.label)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
+                          {link.icon}
+                        </div>
+                        {link.label}
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
+                    </button>
+                    {activeDropdown === link.label && (
+                      <div className="pl-4 mb-2">
+                        {link.children.map((childLink, childIndex) => (
+                          childLink.type === "separator" ? (
+                            <div key={childIndex} className="h-px bg-slate-700 my-1" />
+                          ) : childLink.children ? (
+                            <div key={childIndex}>
+                              <button
+                                className="flex items-center justify-between w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
+                                onClick={() => toggleDropdown(childLink.label)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
+                                    {childLink.icon}
+                                  </div>
+                                  {childLink.label}
+                                </div>
+                                <ChevronDown className={`h-3 w-3 transition-transform ${activeDropdown === childLink.label ? 'rotate-180' : ''}`} />
+                              </button>
+                              {activeDropdown === childLink.label && (
+                                <div className="pl-4 mb-1">
+                                  {childLink.children.map((subLink, subIndex) => (
+                                    <button
+                                      key={subIndex}
+                                      onClick={() => handleNavigation(subLink.href)}
+                                      className="flex items-center gap-2 w-full px-4 py-2 text-left rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
+                                    >
+                                      <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
+                                        {subLink.icon}
+                                      </div>
+                                      {subLink.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              key={childIndex}
+                              onClick={() => handleNavigation(childLink.href)}
+                              className="flex items-center gap-2 w-full px-4 py-2 text-left rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
+                            >
+                              <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
+                                {childLink.icon}
+                              </div>
+                              {childLink.label}
+                            </button>
+                          )
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {link.label}
-                </Link>
+                ) : (
+                  <button
+                    key={index}
+                    onClick={() => handleNavigation(link.href)}
+                    className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
+                        {link.icon}
+                      </div>
+                      {link.label}
+                    </div>
+                  </button>
+                )
               ))}
-              
-              {user && (
-                <>
-                  <div className="border-t border-slate-700 my-4"></div>
-                  
-                  <Link
-                    href="/profile"
-                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
-                      <User className="h-5 w-5" />
-                    </div>
-                    Profile
-                  </Link>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-base font-medium text-white bg-red-600 hover:bg-red-700 mb-2"
-                  >
-                    <div className="bg-red-700/70 p-2 rounded-full">
-                      <LogOut className="h-5 w-5" />
-                    </div>
-                    Logout
-                  </button>
-                </>
-              )}
-              
-              {!user && (
-                <>
-                  <div className="border-t border-slate-700 my-4"></div>
-                  
-                  <button
-                    onClick={() => {
-                      router.push("/login");
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-base font-medium text-white ${getThemeColor()} mb-2`}
-                  >
-                    <div className={`${getThemeColor()} bg-opacity-70 p-2 rounded-full`}>
-                      <LogIn className="h-5 w-5" />
-                    </div>
-                    Login
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </div>

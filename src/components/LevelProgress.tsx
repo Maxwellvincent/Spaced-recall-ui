@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getCurrentAvatar, getCurrentLevel, getNextLevel, getProgressBarClass, getThemeClasses } from "@/utils/themeUtils";
+import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
 
 interface LevelProgressProps {
   theme: string;
@@ -60,7 +61,14 @@ export default function LevelProgress({
         <div className="flex-1">
           <div className="flex items-baseline justify-between">
             <div className={`font-medium ${sizes.text} ${themeClasses.text}`}>
-              {currentLevel}
+              {theme.toLowerCase() === 'dbz' ? (
+                <>
+                  <span className="font-bold text-yellow-400">Power Level: {getDbzPowerLevel(xp).toLocaleString()}</span>
+                  <span className="block text-xs font-bold text-yellow-300 mt-0.5">{getDbzMilestone(getDbzPowerLevel(xp))}</span>
+                </>
+              ) : (
+                currentLevel
+              )}
             </div>
             <div className={`text-gray-500 ${sizes.text}`}>
               {Math.floor(nextLevel.progress)}%

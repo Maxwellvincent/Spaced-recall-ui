@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { getFirebaseDb } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, runTransaction } from "firebase/firestore";
-import { Activity, Habit, Todo, Project } from "@/types/activities";
-import { completeHabit, completeTodo, updateProjectProgress, completeProjectMilestone } from "@/utils/activityUtils";
+import { Activity, Habit, Todo, Project, BookReadingHabit } from "@/types/activities";
+import { completeHabit, completeTodo, updateProjectProgress, completeProjectMilestone, recordReadingSession } from "@/utils/activityUtils";
 import { calculateStreak } from "@/utils/streakUtils";
 
 // POST /api/activities/complete - Complete an activity and update user XP/streaks
@@ -57,9 +57,25 @@ export async function POST(request: NextRequest) {
       
       switch (activity.type) {
         case "habit": {
-          const result = completeHabit(activity as Habit);
-          updatedActivity = result.updatedHabit;
-          xpGained = result.xpGained;
+          // Check if it's a book reading habit
+          if ((activity as any).habitSubtype === 'book-reading') {
+            // Handle book reading session
+            if (!data.readingSession) {
+              throw new Error("Reading session data is required");
+            }
+            
+            const result = recordReadingSession(
+              activity as BookReadingHabit, 
+              data.readingSession
+            );
+            updatedActivity = result.updatedHabit;
+            xpGained = result.xpGained;
+          } else {
+            // Regular habit
+            const result = completeHabit(activity as Habit);
+            updatedActivity = result.updatedHabit;
+            xpGained = result.xpGained;
+          }
           break;
         }
         

@@ -1,35 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { getFirebaseDb } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
 import { Activity, Habit, Todo, Project } from "@/types/activities";
 import { calculateActivityStats } from "@/utils/activityUtils";
 import { v4 as uuidv4 } from "uuid";
+import { headers } from "next/headers";
+import { getFirestore } from 'firebase-admin/firestore';
+import { auth } from "firebase-admin";
+import { initAdmin } from "@/lib/firebase-admin";
+
+// Initialize Firebase Admin if not already initialized
+initAdmin();
+
+// Helper function to get user ID from authorization header
+async function getUserFromToken(authHeader: string | null): Promise<string | null> {
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  try {
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await auth().verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error('Error verifying auth token:', error);
+    return null;
+  }
+}
 
 // GET /api/activities - Get all activities for the current user
 export async function GET(request: NextRequest) {
   try {
-    // Get user session
-    const session = await getServerSession();
-    if (!session?.user?.uid) {
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    const userId = await getUserFromToken(authHeader);
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.uid;
     const type = request.nextUrl.searchParams.get("type");
-    const db = getFirebaseDb();
+    const db = getFirestore();
 
     // Query activities collection
-    const activitiesRef = collection(db, "activities");
+    const activitiesRef = db.collection("activities");
     let q;
 
     if (type && ["habit", "todo", "project"].includes(type)) {
-      q = query(activitiesRef, where("userId", "==", userId), where("type", "==", type));
+      q = activitiesRef.where("userId", "==", userId).where("type", "==", type);
     } else {
-      q = query(activitiesRef, where("userId", "==", userId));
+      q = activitiesRef.where("userId", "==", userId);
     }
 
-    const snapshot = await getDocs(q);
+    const snapshot = await q.get();
     const activities: Activity[] = [];
 
     snapshot.forEach((doc) => {
@@ -49,13 +70,14 @@ export async function GET(request: NextRequest) {
 // POST /api/activities - Create a new activity
 export async function POST(request: NextRequest) {
   try {
-    // Get user session
-    const session = await getServerSession();
-    if (!session?.user?.uid) {
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    const userId = await getUserFromToken(authHeader);
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.uid;
     const data = await request.json();
     
     if (!data.type || !["habit", "todo", "project"].includes(data.type)) {
@@ -113,6 +135,7 @@ export async function POST(request: NextRequest) {
           progress: 0,
           todos: [],
           milestones: data.milestones || [],
+          sourceProjectId: data.sourceProjectId || activityBase.id,
         } as Project;
         break;
         
@@ -121,9 +144,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to Firestore
-    const db = getFirebaseDb();
-    const activityRef = doc(db, "activities", activity.id);
-    await setDoc(activityRef, activity);
+    const db = getFirestore();
+    const activityRef = db.collection("activities").doc(activity.id);
+    await activityRef.set(activity);
 
     return NextResponse.json({ activity });
   } catch (error) {
@@ -135,13 +158,14 @@ export async function POST(request: NextRequest) {
 // PATCH /api/activities - Update an activity
 export async function PATCH(request: NextRequest) {
   try {
-    // Get user session
-    const session = await getServerSession();
-    if (!session?.user?.uid) {
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    const userId = await getUserFromToken(authHeader);
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.uid;
     const data = await request.json();
     
     if (!data.id) {
@@ -149,11 +173,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get the existing activity
-    const db = getFirebaseDb();
-    const activityRef = doc(db, "activities", data.id);
-    const activityDoc = await getDoc(activityRef);
+    const db = getFirestore();
+    const activityRef = db.collection("activities").doc(data.id);
+    const activityDoc = await activityRef.get();
 
-    if (!activityDoc.exists()) {
+    if (!activityDoc.exists) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
@@ -170,10 +194,10 @@ export async function PATCH(request: NextRequest) {
       .filter(([key]) => !protectedFields.includes(key))
       .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
-    await updateDoc(activityRef, updates);
+    await activityRef.update(updates);
 
     // Get updated activity
-    const updatedDoc = await getDoc(activityRef);
+    const updatedDoc = await activityRef.get();
     const updatedActivity = { id: updatedDoc.id, ...updatedDoc.data() } as Activity;
 
     return NextResponse.json({ activity: updatedActivity });
@@ -186,13 +210,14 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/activities?id=xxx - Delete an activity
 export async function DELETE(request: NextRequest) {
   try {
-    // Get user session
-    const session = await getServerSession();
-    if (!session?.user?.uid) {
+    const headersList = headers();
+    const authHeader = headersList.get('authorization');
+    const userId = await getUserFromToken(authHeader);
+
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.uid;
     const activityId = request.nextUrl.searchParams.get("id");
     
     if (!activityId) {
@@ -200,11 +225,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get the existing activity
-    const db = getFirebaseDb();
-    const activityRef = doc(db, "activities", activityId);
-    const activityDoc = await getDoc(activityRef);
+    const db = getFirestore();
+    const activityRef = db.collection("activities").doc(activityId);
+    const activityDoc = await activityRef.get();
 
-    if (!activityDoc.exists()) {
+    if (!activityDoc.exists) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
@@ -216,7 +241,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the activity
-    await deleteDoc(activityRef);
+    await activityRef.delete();
+
+    // If this is a project activity, also delete the corresponding project document
+    if (existingActivity.type === "project") {
+      const projectIdToDelete = existingActivity.sourceProjectId || existingActivity.id;
+      if (projectIdToDelete) {
+        const projectRef = db.collection("projects").doc(projectIdToDelete);
+        const projectDoc = await projectRef.get();
+        if (projectDoc.exists) {
+          await projectRef.delete();
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

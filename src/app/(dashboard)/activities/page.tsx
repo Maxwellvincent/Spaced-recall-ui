@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useActivities } from "@/hooks/useActivities";
+import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, CheckCircle, ListTodo, FolderKanban } from "lucide-react";
+import { 
+  Loader2, 
+  Plus, 
+  CheckCircle, 
+  ListTodo, 
+  FolderKanban, 
+  Clock,
+  ChevronDown
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemedHeader } from "@/components/ui/themed-components";
 import { useTheme } from "@/contexts/theme-context";
 import { HabitList } from "@/components/activities/HabitList";
@@ -17,23 +32,52 @@ import Link from "next/link";
 export default function ActivitiesPage() {
   const { user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<string>("habits");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<string>(tabFromUrl || "habits");
   
-  const { 
-    activities, 
-    stats, 
-    loading, 
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+  
+  const {
+    activities: allActivities,
+    stats,
+    loading,
     error,
     completeHabit,
     completeTodo,
     updateProjectProgress,
     completeProjectMilestone,
-    deleteActivity
+    deleteActivity,
+    recordTimedSession
   } = useActivities({ autoLoad: true });
-  
-  const habits = activities.filter(a => a.type === 'habit');
-  const todos = activities.filter(a => a.type === 'todo');
-  const projects = activities.filter(a => a.type === 'project');
+
+  // Separate hooks for each tab
+  const { activities: projectActivities } = useActivities({ type: 'project' });
+
+  const habits = allActivities.filter(a => a.type === 'habit');
+  const todos = allActivities.filter(a => a.type === 'todo');
+  // Use projectActivities for the projects tab
+  const projects = projectActivities;
+
+  const handleTimedActivityComplete = async (
+    activityId: string,
+    duration: number,
+    activeTime: number
+  ) => {
+    try {
+      await recordTimedSession(activityId, {
+        duration,
+        activeTime,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error recording timed session:', error);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -53,6 +97,30 @@ export default function ActivitiesPage() {
         />
         
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span>Timer</span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/activities/quick-timer" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Quick Timer</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/activities/new/timed" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span>New Timed Activity</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Link href="/activities/new/habit">
             <Button variant="outline" className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
@@ -79,7 +147,7 @@ export default function ActivitiesPage() {
       {stats && <ActivityStats stats={stats} />}
       
       <Tabs 
-        defaultValue="habits" 
+        defaultValue={activeTab} 
         value={activeTab}
         onValueChange={setActiveTab}
         className="mt-8"
@@ -102,7 +170,7 @@ export default function ActivitiesPage() {
         <TabsContent value="habits">
           <HabitList 
             habits={habits} 
-            onComplete={completeHabit} 
+            onComplete={handleTimedActivityComplete}
             onDelete={deleteActivity} 
           />
         </TabsContent>

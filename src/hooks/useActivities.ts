@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Activity, Habit, Todo, Project, ActivityStats } from '@/types/activities';
 import { createHabit, createTodo, createProject } from '@/utils/activityUtils';
+import { getFirebaseDb } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 interface UseActivitiesOptions {
   type?: 'habit' | 'todo' | 'project';
@@ -30,6 +32,15 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
+  const getAuthHeaders = useCallback(async () => {
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  }, [user]);
+
   const loadActivities = useCallback(async () => {
     if (!user) return;
     
@@ -42,7 +53,8 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
         url.searchParams.append('type', options.type);
       }
       
-      const response = await fetch(url.toString());
+      const headers = await getAuthHeaders();
+      const response = await fetch(url.toString(), { headers });
       
       if (!response.ok) {
         throw new Error(`Failed to load activities: ${response.status}`);
@@ -57,7 +69,7 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     } finally {
       setLoading(false);
     }
-  }, [user, options.type]);
+  }, [user, options.type, getAuthHeaders]);
 
   const createActivity = useCallback(async (data: Partial<Activity> & { name: string; type: 'habit' | 'todo' | 'project' }): Promise<Activity> => {
     if (!user) throw new Error('User not authenticated');
@@ -65,11 +77,10 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     try {
       setLoading(true);
       
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/activities', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(data),
       });
       
@@ -91,7 +102,7 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getAuthHeaders]);
 
   const updateActivity = useCallback(async (id: string, updates: Partial<Activity>): Promise<Activity> => {
     if (!user) throw new Error('User not authenticated');
@@ -99,11 +110,10 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     try {
       setLoading(true);
       
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/activities', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ id, ...updates }),
       });
       
@@ -129,7 +139,7 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getAuthHeaders]);
 
   const deleteActivity = useCallback(async (id: string): Promise<boolean> => {
     if (!user) throw new Error('User not authenticated');
@@ -137,8 +147,10 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     try {
       setLoading(true);
       
+      const headers = await getAuthHeaders();
       const response = await fetch(`/api/activities?id=${id}`, {
         method: 'DELETE',
+        headers,
       });
       
       if (!response.ok) {
@@ -157,7 +169,7 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getAuthHeaders]);
 
   const completeActivity = useCallback(async (
     activityId: string, 
@@ -168,11 +180,10 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     try {
       setLoading(true);
       
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/activities/complete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ activityId, ...additionalData }),
       });
       
@@ -201,30 +212,49 @@ export function useActivities(options: UseActivitiesOptions = {}): UseActivities
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getAuthHeaders]);
 
-  const completeHabit = useCallback((id: string) => {
-    return completeActivity(id);
+  const completeHabit = useCallback(async (id: string) => {
+    return completeActivity(id, { type: 'habit' });
   }, [completeActivity]);
 
-  const completeTodo = useCallback((id: string, actualTime?: number) => {
-    return completeActivity(id, { actualTime });
+  const completeTodo = useCallback(async (id: string, actualTime?: number) => {
+    return completeActivity(id, { type: 'todo', actualTime });
   }, [completeActivity]);
 
-  const updateProjectProgress = useCallback((id: string, progress: number) => {
-    return completeActivity(id, { progress });
+  const updateProjectProgress = useCallback(async (id: string, progress: number) => {
+    return completeActivity(id, { type: 'project', progress });
   }, [completeActivity]);
 
-  const completeProjectMilestone = useCallback((projectId: string, milestoneId: string) => {
-    return completeActivity(projectId, { milestoneId });
+  const completeProjectMilestone = useCallback(async (projectId: string, milestoneId: string) => {
+    return completeActivity(projectId, { type: 'project', milestoneId });
   }, [completeActivity]);
 
-  // Load activities on mount if autoLoad is true
   useEffect(() => {
-    if (options.autoLoad !== false && user) {
-      loadActivities();
+    if (!user) return;
+    console.log('[useActivities] Current user:', user.uid);
+    setLoading(true);
+    const db = getFirebaseDb();
+    let q = collection(db, 'activities');
+    if (options.type) {
+      q = query(q, where('userId', '==', user.uid), where('type', '==', options.type));
+    } else {
+      q = query(q, where('userId', '==', user.uid));
     }
-  }, [loadActivities, options.autoLoad, user]);
+    console.log('[useActivities] Setting up Firestore listener for user:', user.uid, 'type:', options.type);
+    const unsub = onSnapshot(q, (snapshot) => {
+      const acts: Activity[] = [];
+      snapshot.forEach(doc => acts.push({ id: doc.id, ...doc.data() } as Activity));
+      setActivities(acts);
+      // Debug log
+      console.log('[useActivities] Loaded activities:', acts);
+      setLoading(false);
+    }, (err) => {
+      setError(err);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [user, options.type]);
 
   return {
     activities,

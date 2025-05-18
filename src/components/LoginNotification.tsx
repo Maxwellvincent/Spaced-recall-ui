@@ -15,13 +15,11 @@ export function LoginNotification() {
     // Show notification after a short delay
     const showTimer = setTimeout(() => {
       setShowNotification(true);
-      console.log("LoginNotification: Showing notification for streak:", streak);
     }, 1000);
     
     // Auto-hide notification after 5 seconds
     const hideTimer = setTimeout(() => {
       setShowNotification(false);
-      console.log("LoginNotification: Hiding notification");
     }, 6000);
     
     return () => {
