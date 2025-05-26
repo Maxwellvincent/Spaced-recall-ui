@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Form } from "@/components/ui/form";
+import { logUserActivity } from '@/utils/logUserActivity';
 
 const habitFormSchema = z.object({
   habitType: z.enum(["regular", "book-reading"]),
@@ -77,7 +78,19 @@ export default function NewHabitPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Habit created!", description: "Start tracking your new habit." });
+        await logUserActivity(user.uid, {
+          type: "habit_created",
+          detail: `Created habit: ${body.name}`,
+          habitType: values.habitType,
+          habitName: body.name,
+        });
+        toast({
+          title: "Success",
+          description: values.habitType === "book-reading"
+            ? "Book reading habit added! Start logging your reading sessions."
+            : "Habit added successfully!",
+          variant: "default",
+        });
         router.push("/dashboard/activities?tab=habits");
       } else {
         toast({ title: "Error", description: data.error || "Failed to create habit", variant: "destructive" });

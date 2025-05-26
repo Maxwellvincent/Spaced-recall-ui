@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { UserCircle, Award, TrendingUp, BookOpen, Plus, Star } from 'lucide-react';
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query, orderBy, limit, setDoc, onSnapshot } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, orderBy, limit, setDoc, onSnapshot, where } from "firebase/firestore";
 import { useTheme } from "@/contexts/theme-context";
 import Link from "next/link";
 import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
@@ -73,11 +73,14 @@ export default function DashboardHomePage() {
   const currentTheme = themeStyles[theme?.toLowerCase?.()] || themeStyles.classic;
   const isDbz = theme?.toLowerCase?.() === "dbz";
 
-  // Fetch user stats and XP breakdown
   useEffect(() => {
     if (!user) return;
     setLoading(true);
     setError(null);
+    let unsubProjects = null;
+    let unsubRewards = null;
+    let unsubActivity = null;
+    let unsubPathways = null;
     async function fetchData() {
       try {
         // Fetch user stats
@@ -90,33 +93,71 @@ export default function DashboardHomePage() {
         setXPBreakdown(xpResult);
         setCurrentLevel(xpResult.level);
         setLevelProgress(xpResult.progress);
-        // Fetch other dashboard data as before
-        const activityQuery = query(
-          collection(db, "users", user.uid, "activity"),
-          orderBy("date", "desc"),
-          limit(5)
-        );
-        const activitySnap = await getDocs(activityQuery);
-        setRecentActivity(activitySnap.docs.map(doc => doc.data()));
-        const pathwaysSnap = await getDocs(collection(db, "users", user.uid, "userPathways"));
-        const userPathways = pathwaysSnap.docs.map(doc => doc.data());
-        setPathways(userPathways);
-        // For each pathway, fetch its subjects and calculate average mastery
-        const progressMap = {};
-        for (const p of userPathways) {
-          const pathwayId = p.pathwayId || p.id || p.name;
-          if (!pathwayId) continue;
-          const subjectsSnap = await getDocs(collection(db, 'pathways', pathwayId, 'subjects'));
-          const subjectDocs = subjectsSnap.docs.map(doc => doc.data());
-          const masteries = subjectDocs.map(s => s.progress?.averageMastery || 0).filter(m => typeof m === 'number');
-          const avgMastery = masteries.length ? Math.round(masteries.reduce((a, b) => a + b, 0) / masteries.length) : 0;
-          progressMap[pathwayId] = avgMastery;
-        }
-        setPathwayProgress(progressMap);
-        const projectsSnap = await getDocs(collection(db, "users", user.uid, "projects"));
-        setProjects(projectsSnap.docs.map(doc => doc.data()));
-        const rewardsSnap = await getDocs(collection(db, "users", user.uid, "rewards"));
-        setRewards(rewardsSnap.docs.map(doc => doc.data()));
+        // Pathways (one-time fetch)
+        unsubPathways = onSnapshot(collection(db, "users", user.uid, "userPathways"), (snapshot) => {
+          const userPathways = snapshot.docs.map(doc => doc.data());
+          setPathways(userPathways);
+          // For each pathway, fetch its subjects and calculate average mastery
+          const progressMap = {};
+          userPathways.forEach(async (p) => {
+            const pathwayId = p.pathwayId || p.id || p.name;
+            if (!pathwayId) return;
+            const subjectsSnap = await getDocs(collection(db, 'pathways', pathwayId, 'subjects'));
+            const subjectDocs = subjectsSnap.docs.map(doc => doc.data());
+            const masteries = subjectDocs.map(s => s.progress?.averageMastery || 0).filter(m => typeof m === 'number');
+            const avgMastery = masteries.length ? Math.round(masteries.reduce((a, b) => a + b, 0) / masteries.length) : 0;
+            progressMap[pathwayId] = avgMastery;
+            setPathwayProgress({ ...progressMap });
+          });
+        });
+        // Real-time listeners for projects, rewards, activity
+        // --- Projects ---
+        const userProjectsCol = collection(db, "users", user.uid, "projects");
+        const globalProjectsQuery = query(collection(db, "projects"), where("userId", "==", user.uid));
+        unsubProjects = onSnapshot(userProjectsCol, (userSnap) => {
+          const userProjects = userSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+          // Also listen to global projects
+          onSnapshot(globalProjectsQuery, (globalSnap) => {
+            const globalProjects = globalSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+            // Merge, preferring user subcollection if present
+            const merged = [...userProjects];
+            globalProjects.forEach(gp => {
+              if (!userProjects.find(up => up.id === gp.id)) merged.push(gp);
+            });
+            setProjects(merged);
+          });
+        });
+        // --- Rewards ---
+        const userRewardsCol = collection(db, "users", user.uid, "rewards");
+        const globalRewardsQuery = query(collection(db, "rewards"), where("userId", "==", user.uid));
+        unsubRewards = onSnapshot(userRewardsCol, (userSnap) => {
+          const userRewards = userSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+          onSnapshot(globalRewardsQuery, (globalSnap) => {
+            const globalRewards = globalSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+            const merged = [...userRewards];
+            globalRewards.forEach(gr => {
+              if (!userRewards.find(ur => ur.id === gr.id)) merged.push(gr);
+            });
+            setRewards(merged);
+          });
+        });
+        // --- Activity ---
+        const userActivityCol = collection(db, "users", user.uid, "activity");
+        const globalActivityQuery = query(collection(db, "activities"), where("userId", "==", user.uid), orderBy("date", "desc"), limit(5));
+        unsubActivity = onSnapshot(userActivityCol, (userSnap) => {
+          const userActs = userSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+          onSnapshot(globalActivityQuery, (globalSnap) => {
+            const globalActs = globalSnap.docs.map(doc => ({...doc.data(), id: doc.id}));
+            const merged = [...userActs];
+            globalActs.forEach(ga => {
+              if (!userActs.find(ua => ua.id === ga.id)) merged.push(ga);
+            });
+            console.log('userActs', userActs);
+            console.log('globalActs', globalActs);
+            console.log('merged', merged);
+            setRecentActivity(merged.slice(0, 10));
+          });
+        });
       } catch (err) {
         setError("Failed to load dashboard data.");
       } finally {
@@ -124,6 +165,12 @@ export default function DashboardHomePage() {
       }
     }
     fetchData();
+    return () => {
+      if (unsubProjects) unsubProjects();
+      if (unsubRewards) unsubRewards();
+      if (unsubActivity) unsubActivity();
+      if (unsubPathways) unsubPathways();
+    };
   }, [user]);
 
   const quote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
@@ -160,6 +207,8 @@ export default function DashboardHomePage() {
   const progressNeeded = levelProgress.neededXP || 100;
   const powerLevel = isDbz ? getDbzPowerLevel(xp) : 0;
   const dbzMilestone = isDbz ? getDbzMilestone(powerLevel) : null;
+
+  console.log('recentActivity (final)', recentActivity);
 
   return (
     <div className="container mx-auto py-8 max-w-6xl">

@@ -16,6 +16,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { getFirebaseDb } from "@/lib/firebase";
 import { collection, doc, setDoc } from "firebase/firestore";
+import { logUserActivity } from '@/utils/logUserActivity';
 
 interface Milestone {
   id: string;
@@ -110,6 +111,15 @@ export default function NewProjectPage() {
       console.log('[DEBUG] About to setDoc in projects:', projectData);
       try {
         await setDoc(doc(collection(db, "projects"), activity.id), projectData);
+        // Also write to user subcollection
+        if (user?.uid) {
+          await setDoc(doc(db, "users", user.uid, "projects", activity.id), { id: activity.id, ...projectData });
+          await logUserActivity(user.uid, {
+            type: "project_created",
+            detail: `Created project \"${name}\" via activities/new/project`,
+            projectId: activity.id,
+          });
+        }
         console.log('[DEBUG] setDoc in projects successful');
         router.push("/activities?tab=projects");
       } catch (setDocError) {

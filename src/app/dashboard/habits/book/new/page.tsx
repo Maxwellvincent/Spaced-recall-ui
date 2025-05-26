@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { ArrowLeft, BookOpen, Loader2 } from "lucide-react";
+import { logUserActivity } from '@/utils/logUserActivity';
 
 const formSchema = z.object({
   title: z.string().min(1, "Book title is required"),
@@ -89,6 +90,12 @@ export default function NewBookPage() {
       const data = await response.json();
       
       if (response.ok) {
+        await logUserActivity(user.uid, {
+          type: "habit_created",
+          detail: `Created book reading habit: ${habitData.name}`,
+          habitType: "book-reading",
+          habitName: habitData.name,
+        });
         toast({
           title: "Success",
           description: "Book added successfully! Start logging your reading sessions.",

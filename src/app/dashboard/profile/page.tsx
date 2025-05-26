@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, onSnapshot, orderBy, limit } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
 import { Loader2, Save, User, BarChart, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -101,6 +101,7 @@ export default function ProfilePage() {
   });
   const [currentLevel, setCurrentLevel] = useState(1);
   const [levelProgress, setLevelProgress] = useState({ currentXP: 0, neededXP: 100, percent: 0 });
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   
   // Use the login streak hook
   const { 
@@ -168,6 +169,21 @@ export default function ProfilePage() {
     
     fetchUserData();
   }, [user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    // Real-time listener for recent activities
+    const q = query(
+      collection(db, "activities"),
+      where("userId", "==", user.uid),
+      orderBy("date", "desc"),
+      limit(10)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setRecentActivities(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, [user]);
 
   const handleSavePreferences = async () => {
     if (!user) return;
@@ -345,19 +361,33 @@ export default function ProfilePage() {
             icon={<Clock className="w-5 h-5" />}
           >
             <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
-              {xpBreakdown.recentHistory.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm border-b border-slate-700/50 pb-1">
-                  <div className="flex flex-col">
-                    <span className="capitalize">{item.activity}</span>
-                    <span className="text-xs text-white font-semibold">
-                      {new Date(item.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <span className="font-medium">{item.xp} XP</span>
-                </div>
-              ))}
-              {xpBreakdown.recentHistory.length === 0 && (
+              {recentActivities.length === 0 ? (
                 <p className="text-white font-semibold">No recent activity</p>
+              ) : (
+                recentActivities.map((act) => {
+                  let detail = act.detail || '';
+                  const prefixes = [
+                    'Completed habit: ',
+                    'Created habit: ',
+                    'Created project: '
+                  ];
+                  for (const prefix of prefixes) {
+                    if (detail.startsWith(prefix)) {
+                      detail = detail.replace(prefix, '');
+                      break;
+                    }
+                  }
+                  return (
+                    <div key={act.id} className="flex justify-between text-sm border-b border-slate-700/50 pb-1">
+                      <div className="flex flex-col">
+                        <span className="text-slate-200">{detail}</span>
+                        <span className="text-xs text-white font-semibold">
+                          {act.date ? new Date(act.date).toLocaleDateString() : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </ThemedCard>

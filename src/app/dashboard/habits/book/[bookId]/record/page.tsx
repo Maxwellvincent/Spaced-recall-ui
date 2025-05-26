@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/use-toast";
 import { ArrowLeft, BookOpen, Loader2, Clock } from "lucide-react";
+import { logUserActivity } from '@/utils/logUserActivity';
 
 interface PageProps {
   params: {
@@ -153,6 +154,16 @@ export default function RecordReadingPage({ params }: PageProps) {
       
       if (response.ok) {
         const pagesRead = formState.endPage - formState.startPage;
+        await logUserActivity(book.userId, {
+          type: "habit_reading_session",
+          detail: `Read ${pagesRead} pages in \"${book.book.title}\" (+${data.xpGained} XP)` ,
+          habitId: book.id,
+          bookTitle: book.book.title,
+          pagesRead,
+          duration: formState.duration,
+          summary: formState.summary,
+          xpGained: data.xpGained,
+        });
         toast({
           title: "Success!",
           description: `Recorded ${pagesRead} pages read (+${data.xpGained} XP)`,

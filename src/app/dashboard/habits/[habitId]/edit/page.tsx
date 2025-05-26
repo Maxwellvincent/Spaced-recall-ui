@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
+import { logUserActivity } from '@/utils/logUserActivity';
+import { useAuth } from '@/lib/auth';
 
 export default function EditHabitPage() {
   const router = useRouter();
   const { habitId } = useParams();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [frequency, setFrequency] = useState("daily");
@@ -46,6 +49,14 @@ export default function EditHabitPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (user?.uid) {
+          await logUserActivity(user.uid, {
+            type: "habit_updated",
+            detail: `Updated habit: ${name}`,
+            habitId,
+            habitName: name,
+          });
+        }
         toast({ title: "Habit updated!", description: "Your changes have been saved." });
         router.push("/dashboard/habits");
       } else {

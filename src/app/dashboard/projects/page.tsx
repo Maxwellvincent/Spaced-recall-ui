@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseDb } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/contexts/theme-context";
 import { Loader2, Plus, Calendar, Clock, BarChart, Trash, Edit, ChevronDown, ChevronRight } from "lucide-react";
@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { syncProjectToActivities, deleteProjectFromActivities } from "@/utils/syncProjectsToActivities";
+import { logUserActivity } from '@/utils/logUserActivity';
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -220,7 +221,10 @@ export default function ProjectsPage() {
 
       console.log("Project data:", projectData);
       console.log("Adding to Firestore collection 'projects'");
+      // Write to global projects collection
       const docRef = await addDoc(collection(db, "projects"), projectData);
+      // Write to user subcollection
+      await setDoc(doc(db, "users", user.uid, "projects", docRef.id), { id: docRef.id, ...projectData });
       console.log("Project added with ID:", docRef.id);
       
       const newProjectItem = {
@@ -274,6 +278,12 @@ export default function ProjectsPage() {
         // Don't show error to user, as the project was still created successfully
       }
 
+      await logUserActivity(user.uid, {
+        type: "project_created",
+        detail: `Created project \"${newProject.name}\"`,
+        projectId: docRef.id,
+      });
+
       await fetchProjects(); // Refetch after add
     } catch (error) {
       console.error("Error adding project:", error);
@@ -285,6 +295,8 @@ export default function ProjectsPage() {
     try {
       const projectRef = doc(db, "projects", projectId);
       await deleteDoc(projectRef);
+      // Also delete from user subcollection
+      await deleteDoc(doc(db, "users", user.uid, "projects", projectId));
 
       setProjects(prev => prev.filter(project => project.id !== projectId));
       toast.success("Project deleted successfully");
@@ -299,6 +311,12 @@ export default function ProjectsPage() {
         }
       }
 
+      await logUserActivity(user.uid, {
+        type: "project_deleted",
+        detail: `Deleted project \"${projectId}\"`,
+        projectId,
+      });
+
       await fetchProjects(); // Refetch after delete
     } catch (error) {
       console.error("Error deleting project:", error);
@@ -310,6 +328,8 @@ export default function ProjectsPage() {
     try {
       const projectRef = doc(db, "projects", projectId);
       await updateDoc(projectRef, { status });
+      // Also update in user subcollection
+      await updateDoc(doc(db, "users", user.uid, "projects", projectId), { status });
 
       setProjects(prev => prev.map(project => 
         project.id === projectId ? { ...project, status } : project
@@ -326,6 +346,13 @@ export default function ProjectsPage() {
           // Don't show error to user, as the project was still updated successfully
         }
       }
+
+      await logUserActivity(user.uid, {
+        type: "project_status_updated",
+        detail: `Updated project status to ${status}`,
+        projectId,
+        status,
+      });
 
       await fetchProjects(); // Refetch after status update
     } catch (error) {
@@ -471,6 +498,13 @@ export default function ProjectsPage() {
           // Don't show error to user, as the task status was still updated successfully
         }
       }
+
+      await logUserActivity(user.uid, {
+        type: isCompleting ? "task_completed" : "task_uncompleted",
+        detail: `${isCompleting ? "Completed" : "Uncompleted"} task \"${updatedTasks[taskIndex].title}\" in project \"${project.name}\"`,
+        projectId,
+        taskId,
+      });
 
       await fetchProjects(); // Refetch after task update
     } catch (error) {

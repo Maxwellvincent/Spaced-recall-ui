@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import LoyaltyRewards from '@/components/LoyaltyRewards';
 import { ThemeConfig as LoyaltyThemeConfig, ThemeLoyalty } from '@/lib/xpSystem';
 import { themeConfig } from '@/config/themeConfig';
+import { logUserActivity } from '@/utils/logUserActivity';
 
 export default function RewardsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -77,6 +78,15 @@ export default function RewardsPage() {
     setCurrentLoyalty(newLoyalty);
     try {
       await updateDoc(doc(db, 'users', user.uid), {
+        loyalty: newLoyalty
+      });
+      // Dual-write: also update global rewards and user subcollection
+      await setDoc(doc(db, 'rewards', user.uid), { userId: user.uid, loyalty: newLoyalty });
+      await setDoc(doc(db, 'users', user.uid, 'rewards', user.uid), { userId: user.uid, loyalty: newLoyalty });
+      // Log activity
+      await logUserActivity(user.uid, {
+        type: 'reward_earned',
+        detail: `Updated loyalty/reward`,
         loyalty: newLoyalty
       });
     } catch (error) {
