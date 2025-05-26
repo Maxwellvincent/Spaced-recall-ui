@@ -2,9 +2,10 @@
 "use client";
 
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFirestore, Firestore, connectFirestoreEmulator, collection, getDocs } from "firebase/firestore";
 import { getAuth, Auth, connectAuthEmulator } from "firebase/auth";
 import { firebaseConfig as fallbackConfig } from "./firebase-config-values";
+// import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 // Define local variables that will be initialized lazily
 let app: FirebaseApp | null = null;
@@ -124,6 +125,21 @@ const initFirebaseSync = () => {
       connectAuthEmulator(_auth, 'http://localhost:9099');
       connectFirestoreEmulator(_db, 'localhost', 8080);
     }
+
+    // Remove or comment out App Check debug token and initialization
+    // if (typeof window !== 'undefined') {
+    //   if (!window.localStorage.getItem('firebaseAppCheckDebugToken')) {
+    //     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    //   } else {
+    //     console.log('[AppCheck] Debug token:', window.localStorage.getItem('firebaseAppCheckDebugToken'));
+    //   }
+    //   if (app) {
+    //     initializeAppCheck(app, {
+    //       provider: new ReCaptchaV3Provider('test'), // 'test' is fine for debug
+    //       isTokenAutoRefreshEnabled: true
+    //     });
+    //   }
+    // }
   } catch (err) {
   }
 };
@@ -203,4 +219,14 @@ export function initializeFirebase(): boolean {
   
   initFirebaseSync();
   return isFirebaseInitialized();
+}
+
+// At the very end of src/lib/firebase.ts
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.db = db;
+  // @ts-ignore
+  window.collection = collection;
+  // @ts-ignore
+  window.getDocs = getDocs;
 }

@@ -13,9 +13,10 @@ dayjs.extend(relativeTime);
 interface SubjectReviewDashboardProps {
   subject: Subject;
   onSync?: () => void;
+  themeStyles?: any;
 }
 
-export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboardProps) {
+export function SubjectReviewDashboard({ subject, onSync, themeStyles = {} }: SubjectReviewDashboardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Count upcoming reviews
@@ -96,19 +97,19 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
   const stats = getReviewStats();
 
   return (
-    <Card className="border-slate-800 bg-slate-950 backdrop-blur-sm">
+    <Card className={`${themeStyles.cardBg || 'border-slate-800 bg-slate-950 backdrop-blur-sm'}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl text-slate-100">Review Dashboard</CardTitle>
+        <CardTitle className={`text-xl ${themeStyles.textPrimary || 'text-slate-100'}`}>Review Dashboard</CardTitle>
         <SyncCalendarButton subject={subject} onSync={onSync} />
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
-              <CalendarIcon className="h-8 w-8 text-blue-500" />
+            <div className={`flex items-center space-x-4 rounded-lg ${themeStyles.border || 'border-slate-800'} ${themeStyles.cardBg || 'bg-slate-900/80'} p-4 transition-colors hover:bg-slate-800/80`}>
+              <CalendarIcon className={`h-8 w-8 ${themeStyles.accent || 'text-blue-500'}`} />
               <div>
-                <p className="text-sm font-medium text-slate-300">Next Review</p>
-                <p className="text-2xl font-bold text-slate-100">
+                <p className={`text-sm font-medium ${themeStyles.textSecondary || 'text-slate-300'}`}>Next Review</p>
+                <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>
                   {nextReviewDate 
                     ? dayjs(nextReviewDate).fromNow()
                     : 'No reviews scheduled'}
@@ -116,28 +117,28 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
-              <Clock className="h-8 w-8 text-emerald-500" />
+            <div className={`flex items-center space-x-4 rounded-lg ${themeStyles.border || 'border-slate-800'} ${themeStyles.cardBg || 'bg-slate-900/80'} p-4 transition-colors hover:bg-slate-800/80`}>
+              <Clock className={`h-8 w-8 ${themeStyles.accent || 'text-emerald-500'}`} />
               <div>
-                <p className="text-sm font-medium text-slate-300">Upcoming Reviews</p>
-                <p className="text-2xl font-bold text-slate-100">{upcomingReviews}</p>
+                <p className={`text-sm font-medium ${themeStyles.textSecondary || 'text-slate-300'}`}>Upcoming Reviews</p>
+                <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{upcomingReviews}</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4 rounded-lg border border-slate-800 bg-slate-900/80 p-4 transition-colors hover:bg-slate-800/80">
-              <Brain className="h-8 w-8 text-purple-500" />
+            <div className={`flex items-center space-x-4 rounded-lg ${themeStyles.border || 'border-slate-800'} ${themeStyles.cardBg || 'bg-slate-900/80'} p-4 transition-colors hover:bg-slate-800/80`}>
+              <Brain className={`h-8 w-8 ${themeStyles.accent || 'text-purple-500'}`} />
               <div>
-                <p className="text-sm font-medium text-slate-300">Average Mastery</p>
-                <p className="text-2xl font-bold text-slate-100">{stats.averageMastery}%</p>
+                <p className={`text-sm font-medium ${themeStyles.textSecondary || 'text-slate-300'}`}>Average Mastery</p>
+                <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{stats.averageMastery}%</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+          <div className={`flex items-center justify-between rounded-lg ${themeStyles.border || 'border-slate-800'} ${themeStyles.cardBg || 'bg-slate-900/80'} p-4`}>
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-300">Review Progress</p>
+              <p className={`text-sm font-medium ${themeStyles.textSecondary || 'text-slate-300'}`}>Review Progress</p>
               <div className="flex items-center space-x-2">
-                <p className="text-lg font-semibold text-slate-100">
+                <p className={`text-lg font-semibold ${themeStyles.textPrimary || 'text-slate-100'}`}>
                   {stats.completedReviews} of {stats.totalReviews} reviews completed
                 </p>
                 <Badge 
@@ -145,8 +146,8 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
                   className={cn(
                     "ml-2",
                     stats.completedReviews === stats.totalReviews 
-                      ? "border-green-500 text-green-500"
-                      : "border-blue-500 text-blue-500"
+                      ? `${themeStyles.border || 'border-green-500'} ${themeStyles.textPrimary || 'text-green-500'}`
+                      : `${themeStyles.border || 'border-blue-500'} ${themeStyles.accent || 'text-blue-500'}`
                   )}
                 >
                   {Math.round((stats.completedReviews / (stats.totalReviews || 1)) * 100)}%
@@ -154,7 +155,7 @@ export function SubjectReviewDashboard({ subject, onSync }: SubjectReviewDashboa
               </div>
             </div>
             {subject.calendarSynced && (
-              <Badge variant="outline" className="border-green-500 text-green-500">
+              <Badge variant="outline" className={`${themeStyles.border || 'border-green-500'} ${themeStyles.textPrimary || 'text-green-500'}`}>
                 Synced with Calendar
               </Badge>
             )}

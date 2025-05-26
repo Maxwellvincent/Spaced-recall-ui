@@ -5,6 +5,9 @@ import { Subject, Topic, StudySession } from "@/types/study";
 import { activityTypes, difficultyLevels, calculateSessionXP } from "@/lib/xpSystem";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useAuth } from '@/lib/auth';
+import { getFirebaseDb } from '@/lib/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 interface SessionFormProps {
   subject: Subject | null;
@@ -21,6 +24,8 @@ export default function SessionForm({
   onComplete,
   onCancel
 }: SessionFormProps) {
+  const { user } = useAuth();
+  const db = getFirebaseDb();
   const [session, setSession] = useState<Partial<StudySession>>({
     date: new Date().toISOString(),
     duration: 30,
@@ -29,8 +34,40 @@ export default function SessionForm({
     difficulty: "medium",
     ...initialData
   });
-
   const [isCalculating, setIsCalculating] = useState(false);
+  const [activityTypeInput, setActivityTypeInput] = useState("");
+  const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>(Object.keys(activityTypes));
+  const [filteredOptions, setFilteredOptions] = useState<string[]>(Object.keys(activityTypes));
+  const [showOptions, setShowOptions] = useState(false);
+
+  // Fetch custom activity types from Firestore
+  useEffect(() => {
+    const fetchCustomTypes = async () => {
+      if (!user) return;
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (Array.isArray(data.customActivityTypes)) {
+          setActivityTypeOptions(prev => Array.from(new Set([...prev, ...data.customActivityTypes])));
+        }
+      }
+    };
+    fetchCustomTypes();
+  }, [user, db]);
+
+  // Filter options as user types
+  useEffect(() => {
+    if (!activityTypeInput) {
+      setFilteredOptions(activityTypeOptions);
+    } else {
+      setFilteredOptions(
+        activityTypeOptions.filter(opt =>
+          opt.toLowerCase().includes(activityTypeInput.toLowerCase())
+        )
+      );
+    }
+  }, [activityTypeInput, activityTypeOptions]);
 
   // Calculate XP and mastery whenever relevant fields change
   useEffect(() => {
@@ -42,7 +79,6 @@ export default function SessionForm({
           duration: Math.max(1, session.duration || 0),
           currentLevel: topic.masteryLevel || 0
         });
-        
         setSession(prev => ({
           ...prev,
           xpGained: isFinite(xp) ? xp : 0,
@@ -62,15 +98,38 @@ export default function SessionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsCalculating(true);
-    
-    // Add ID if it doesn't exist (new session)
     const sessionToSave = {
       ...session,
       id: session.id || crypto.randomUUID()
     };
-    
     onComplete(sessionToSave);
     setIsCalculating(false);
+  };
+
+  // Add new custom activity type
+  const handleAddCustomType = async (newType: string) => {
+    if (!user) return;
+    const cleanType = newType.trim();
+    if (!cleanType) return;
+    setActivityTypeOptions(prev => Array.from(new Set([...prev, cleanType])));
+    setSession(prev => ({ ...prev, activityType: cleanType }));
+    setActivityTypeInput("");
+    setShowOptions(false);
+    // Save to Firestore
+    const userRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+    let customTypes: string[] = [];
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      if (Array.isArray(data.customActivityTypes)) {
+        customTypes = data.customActivityTypes;
+      }
+    }
+    if (!customTypes.includes(cleanType)) {
+      await updateDoc(userRef, {
+        customActivityTypes: [...customTypes, cleanType]
+      });
+    }
   };
 
   if (!subject || !topic) {
@@ -84,19 +143,48 @@ export default function SessionForm({
           <label className="block text-sm font-medium text-slate-300 mb-1">
             Activity Type
           </label>
-          <select
-            value={session.activityType}
-            onChange={(e) => setSession({
-              ...session,
-              activityType: e.target.value
-            })}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
-            required
-          >
-            {Object.entries(activityTypes).map(([key, value]) => (
-              <option key={key} value={key}>{value.name}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              type="text"
+              value={activityTypeInput || session.activityType || ''}
+              onChange={e => {
+                setActivityTypeInput(e.target.value);
+                setSession(prev => ({ ...prev, activityType: e.target.value }));
+                setShowOptions(true);
+              }}
+              onFocus={() => setShowOptions(true)}
+              onBlur={() => setTimeout(() => setShowOptions(false), 150)}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
+              placeholder="Type or select activity type"
+              autoComplete="off"
+              required
+            />
+            {showOptions && filteredOptions.length > 0 && (
+              <ul className="absolute z-10 w-full bg-slate-900 border border-slate-700 rounded mt-1 max-h-40 overflow-y-auto">
+                {filteredOptions.map(opt => (
+                  <li
+                    key={opt}
+                    className="px-3 py-2 cursor-pointer hover:bg-slate-700"
+                    onMouseDown={() => {
+                      setSession(prev => ({ ...prev, activityType: opt }));
+                      setActivityTypeInput(opt);
+                      setShowOptions(false);
+                    }}
+                  >
+                    {activityTypes[opt]?.name || opt}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {showOptions && activityTypeInput && !activityTypeOptions.some(opt => opt.toLowerCase() === activityTypeInput.toLowerCase()) && (
+              <div
+                className="absolute z-10 w-full bg-slate-900 border-t border-slate-700 rounded-b px-3 py-2 cursor-pointer text-blue-400 hover:bg-blue-900"
+                onMouseDown={() => handleAddCustomType(activityTypeInput)}
+              >
+                + Add "{activityTypeInput}"
+              </div>
+            )}
+          </div>
         </div>
         
         <div>

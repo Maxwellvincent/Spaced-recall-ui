@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 
@@ -38,7 +39,7 @@ export default function FirebaseTest() {
         setStatus('Firebase initialized successfully');
         
         // Test authentication
-        const auth = getAuth(app);
+        const auth = getFirebaseAuth();
         const result = await signInAnonymously(auth);
         setStatus('Authentication successful: ' + result.user.uid);
         

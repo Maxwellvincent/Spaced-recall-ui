@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Habit, Todo, Project, Activity, ActivityStats, BookReadingHabit } from '@/types/activities';
 import { calculateSessionXP } from '@/lib/xpSystem';
+console.log('DEBUG calculateSessionXP:', calculateSessionXP);
 
 /**
  * Create a new habit

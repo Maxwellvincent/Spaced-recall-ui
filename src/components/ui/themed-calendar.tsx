@@ -6,7 +6,7 @@ interface CalendarEvent {
   id: string;
   title: string;
   date: Date;
-  type: "review" | "quiz" | "study" | "practice";
+  type: "review" | "quiz" | "study" | "practice" | "habit" | "reading";
   urgency: "low" | "medium" | "high" | "missed";
   completed?: boolean;
 }
@@ -15,7 +15,9 @@ interface ThemedCalendarProps {
   theme: string;
   events: CalendarEvent[];
   onEventClick?: (event: CalendarEvent) => void;
+  onDayClick?: (date: Date) => void;
   className?: string;
+  heading?: string;
 }
 
 const themeStyles = {
@@ -64,6 +66,18 @@ const themeStyles = {
         medium: "👊",
         high: "👊",
         missed: "💢"
+      },
+      habit: {
+        low: "🟢",
+        medium: "🟡",
+        high: "🔴",
+        missed: "❌"
+      },
+      reading: {
+        low: "📖",
+        medium: "📚",
+        high: "📘",
+        missed: "❌"
       }
     }
   },
@@ -112,6 +126,18 @@ const themeStyles = {
         medium: "🔄",
         high: "🔄",
         missed: "💢"
+      },
+      habit: {
+        low: "🟢",
+        medium: "🟡",
+        high: "🔴",
+        missed: "❌"
+      },
+      reading: {
+        low: "📖",
+        medium: "📚",
+        high: "📘",
+        missed: "❌"
       }
     }
   },
@@ -160,6 +186,18 @@ const themeStyles = {
         medium: "🪄",
         high: "🪄",
         missed: "💢"
+      },
+      habit: {
+        low: "🟢",
+        medium: "🟡",
+        high: "🔴",
+        missed: "❌"
+      },
+      reading: {
+        low: "📖",
+        medium: "📚",
+        high: "📘",
+        missed: "❌"
       }
     }
   },
@@ -208,6 +246,18 @@ const themeStyles = {
         medium: "👨‍💻",
         high: "👨‍💻",
         missed: "❌"
+      },
+      habit: {
+        low: "🟢",
+        medium: "🟡",
+        high: "🔴",
+        missed: "❌"
+      },
+      reading: {
+        low: "📖",
+        medium: "📚",
+        high: "📘",
+        missed: "❌"
       }
     }
   }
@@ -226,7 +276,9 @@ export function ThemedCalendar({
   theme,
   events,
   onEventClick,
-  className
+  onDayClick,
+  className,
+  heading
 }: ThemedCalendarProps) {
   const styles = themeStyles[theme as keyof typeof themeStyles] || themeStyles.classic;
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -289,11 +341,12 @@ export function ThemedCalendar({
       
       days.push(
         <div 
-          key={`day-${day}`} 
+          key={`day-${day}`}
           className={cn(
-            "p-2 min-h-[100px] border-t border-gray-800",
+            "p-2 min-h-[100px] border-t border-gray-800 cursor-pointer",
             isToday ? styles.day.current : styles.day.normal
           )}
+          onClick={() => onDayClick && onDayClick(date)}
         >
           <div className="font-medium">{day}</div>
           <div className="mt-1 space-y-1">
@@ -305,7 +358,10 @@ export function ThemedCalendar({
                   styles.event[event.urgency]
                 )}
                 whileHover={{ scale: 1.02 }}
-                onClick={() => onEventClick && onEventClick(event)}
+                onClick={e => {
+                  e.stopPropagation();
+                  onEventClick && onEventClick(event);
+                }}
               >
                 <div className="flex items-center gap-1">
                   <span>
@@ -328,9 +384,9 @@ export function ThemedCalendar({
   return (
     <div className={cn("rounded-lg p-4", styles.container, className)}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className={cn("text-lg font-semibold", styles.title)}>
-          Study Calendar
-        </h3>
+        {heading && (
+          <h3 className={cn("text-lg font-semibold", styles.title)}>{heading}</h3>
+        )}
         <div className="flex items-center gap-2">
           <button
             onClick={goToPreviousMonth}

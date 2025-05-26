@@ -96,15 +96,15 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  .study-header {
+    @apply text-2xl font-bold mb-6 text-gray-900 dark:text-white;
+  }
 }
 
 @layer components {
   .study-card {
     @apply bg-background dark:bg-background rounded-lg shadow-md p-6 transition-all duration-200 hover:shadow-lg;
-  }
-
-  .study-header {
-    @apply text-2xl font-bold mb-6 text-gray-900 dark:text-white;
   }
 
   .study-subheader {

@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { 
   GoogleAuthProvider, 
   signInWithPopup,
-  getAuth,
-  onAuthStateChanged
+  getFirebaseAuth
 } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 
@@ -27,7 +26,7 @@ export default function TestAuthPage() {
     try {
       // Initialize Firebase
       const app = initializeApp(firebaseConfig, "test-auth-app");
-      const auth = getAuth(app);
+      const auth = getFirebaseAuth();
       
       setStatus("Firebase initialized");
       
@@ -61,7 +60,7 @@ export default function TestAuthPage() {
         projectId: "spacedrecallapp-e142c"
       }, "google-sign-in-test");
       
-      const auth = getAuth(app);
+      const auth = getFirebaseAuth();
       
       // Create provider
       const provider = new GoogleAuthProvider();

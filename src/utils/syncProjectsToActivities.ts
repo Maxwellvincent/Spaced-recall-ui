@@ -93,16 +93,23 @@ export async function syncProjectToActivities(userId: string, projectId: string)
           // Update existing activity
           const activityDoc = snapshot.docs[0];
           activityId = activityDoc.id;
-          
-          // Update basic fields
+          // Add logging before update
+          console.log('[SYNC] About to update activity', activityId, 'with progress:', projectData.progress, 'and data:', {
+            ...activityDoc.data(),
+            name: projectData.name ?? activityDoc.data().name,
+            description: projectData.description ?? activityDoc.data().description ?? "",
+            status: projectData.status ?? activityDoc.data().status,
+            progress: projectData.progress ?? activityDoc.data().progress ?? 0,
+          });
           await setDoc(doc(db, "activities", activityId), {
             ...activityDoc.data(),
-            name: projectData.name || activityDoc.data().name,
-            description: projectData.description || activityDoc.data().description || "",
-            status: projectData.status || activityDoc.data().status,
-            progress: projectData.progress || activityDoc.data().progress || 0,
+            name: projectData.name ?? activityDoc.data().name,
+            description: projectData.description ?? activityDoc.data().description ?? "",
+            status: projectData.status ?? activityDoc.data().status,
+            progress: projectData.progress ?? activityDoc.data().progress ?? 0,
             // Don't overwrite xp, completedCount, streak, etc.
           }, { merge: true });
+          console.log('[SYNC] Updated activity', activityId, 'with progress:', projectData.progress);
           
           // Update milestones based on tasks
           if (projectData.tasks && Array.isArray(projectData.tasks)) {

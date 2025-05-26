@@ -101,39 +101,42 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: "Home", icon: <Home className="h-5 w-5" /> },
     { href: "/dashboard", label: "Dashboard", icon: <Home className="h-5 w-5" /> },
-    { href: "/subjects", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
-    { 
-      label: "Activities", 
-      icon: <CheckCircle className="h-5 w-5" />, 
+    {
+      label: "Pathways",
+      icon: <Brain className="h-5 w-5 text-blue-400" />,
       children: [
-        { href: "/activities", label: "All Activities", icon: <CheckCircle className="h-5 w-5" /> },
+        { href: "/dashboard/pathways", label: "Your Pathways", icon: <Brain className="h-5 w-5 text-blue-400" /> },
+        { href: "/dashboard/subjects/mcat-mastery", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
+      ]
+    },
+    {
+      label: "Activities",
+      icon: <CheckCircle className="h-5 w-5" />,
+      children: [
+        { href: "/dashboard/activities", label: "All Activities", icon: <CheckCircle className="h-5 w-5" /> },
         {
           label: "Habits",
           icon: <BookOpen className="h-5 w-5" />,
           children: [
-            { href: "/activities?tab=habits", label: "Habits (Tab)", icon: <BookOpen className="h-5 w-5" /> },
-            { href: "/habits", label: "All Habits", icon: <BookOpen className="h-5 w-5" /> },
+            { href: "/dashboard/activities?tab=habits", label: "Habits", icon: <BookOpen className="h-5 w-5" /> },
           ]
         },
         {
           label: "Todos",
           icon: <CheckCircle className="h-5 w-5" />,
           children: [
-            { href: "/activities?tab=todos", label: "Todos (Tab)", icon: <CheckCircle className="h-5 w-5" /> },
-            { href: "/todos", label: "All Todos", icon: <CheckCircle className="h-5 w-5" /> },
+            { href: "/dashboard/activities?tab=todos", label: "Todos", icon: <CheckCircle className="h-5 w-5" /> },
           ]
         },
         {
           label: "Projects",
           icon: <BarChart className="h-5 w-5" />,
           children: [
-            { href: "/activities?tab=projects", label: "Projects (Tab)", icon: <BarChart className="h-5 w-5" /> },
-            { href: "/projects", label: "All Projects", icon: <BarChart className="h-5 w-5" /> },
+            { href: "/dashboard/activities?tab=projects", label: "Projects", icon: <BarChart className="h-5 w-5" /> },
           ]
         },
-        { type: "separator" },
-        { href: "/activities/quick-timer", label: "Quick Timer", icon: <Clock className="h-5 w-5" /> },
-        { href: "/activities/new/timed", label: "New Timed Activity", icon: <Plus className="h-5 w-5" /> },
+        { href: "/dashboard/activities/quick-timer", label: "Quick Timer", icon: <Clock className="h-5 w-5" /> },
+        { href: "/dashboard/activities/new/timed", label: "New Timed Activity", icon: <Plus className="h-5 w-5" /> },
       ]
     },
     { href: "/study-logger", label: "Study Logger", icon: <Clock className="h-5 w-5" /> },
@@ -289,7 +292,7 @@ export default function Navbar() {
                   <Link
                     key={index}
                     href={link.href}
-                    className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-blue-300 transition"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${link.label === 'Pathways' ? 'text-blue-400 font-bold bg-slate-700/60' : 'text-slate-200 hover:text-blue-300'}`}
                   >
                     {link.label}
                   </Link>
@@ -299,7 +302,7 @@ export default function Navbar() {
               {user ? (
                 <div className="flex items-center gap-3">
                   <Link
-                    href="/profile"
+                    href="/dashboard/profile"
                     className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-blue-300"
                   >
                     Profile
@@ -329,7 +332,7 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-[88px] z-50 bg-black/60">
-          <div className="bg-slate-900 w-64 h-full overflow-y-auto">
+          <div className="bg-slate-900 w-80 max-w-xs h-full overflow-y-auto absolute right-0 shadow-xl">
             <div className="p-4">
               {navLinks.map((link, index) => (
                 link.children ? (
@@ -402,14 +405,12 @@ export default function Navbar() {
                   <button
                     key={index}
                     onClick={() => handleNavigation(link.href)}
-                    className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-base font-medium mb-2 ${link.label === 'Pathways' ? 'text-blue-400 font-bold bg-slate-700/60' : 'text-white hover:bg-slate-800'}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
-                        {link.icon}
-                      </div>
-                      {link.label}
+                    <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
+                      {link.icon}
                     </div>
+                    {link.label}
                   </button>
                 )
               ))}

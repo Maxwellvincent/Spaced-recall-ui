@@ -58,6 +58,7 @@ export interface Topic {
   nextReview?: string;
   reviewInterval?: number; // in days
   concepts: Concept[];
+  subtopics?: Topic[];
   examScore?: number;
   weakAreas?: string[];
   currentPhase: string;

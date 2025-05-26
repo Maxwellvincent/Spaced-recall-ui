@@ -37,4 +37,14 @@ export interface SubjectProgress {
 export interface AISubjectHelperProps {
   onStructureGenerated: (structure: SubjectStructure) => void;
   onError: (error: string) => void;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  description?: string;
+  domainId: string;
+  // topics?: string[]; // Remove or comment out, topics are now in their own collection
+  createdAt: string;
+  // Add any other fields as needed
 } 

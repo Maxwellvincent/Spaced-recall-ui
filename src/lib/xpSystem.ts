@@ -195,7 +195,7 @@ export const difficultyLevels = {
   expert: { name: 'Expert', multiplier: 2.0 },
 };
 
-export const calculateSessionXP = ({
+export function calculateSessionXP({
   activityType,
   difficulty,
   duration,
@@ -205,7 +205,7 @@ export const calculateSessionXP = ({
   difficulty: keyof typeof difficultyLevels;
   duration: number;
   currentLevel?: number;
-}): { xp: number; masteryGained: number } => {
+}): { xp: number; masteryGained: number } {
   try {
     // Validate inputs
     if (!activityType || !activityTypes[activityType]) {
@@ -262,7 +262,7 @@ export const calculateSessionXP = ({
     console.error('Error calculating XP:', error);
     return { xp: 0, masteryGained: 0 };
   }
-};
+}
 
 // Get rank based on XP and theme
 export function getRankFromXP(xp: number, theme: ThemeConfig): string {

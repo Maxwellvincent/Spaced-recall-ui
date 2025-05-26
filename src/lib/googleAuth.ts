@@ -1,4 +1,4 @@
-import { getAuth } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFirebaseDb } from '@/lib/firebase';
 
@@ -6,7 +6,7 @@ import { getFirebaseDb } from '@/lib/firebase';
 const db = getFirebaseDb();
 
 export async function checkGoogleCalendarAuth(): Promise<boolean> {
-  const auth = getAuth();
+  const auth = getFirebaseAuth();
   const user = auth.currentUser;
 
   if (!user) {

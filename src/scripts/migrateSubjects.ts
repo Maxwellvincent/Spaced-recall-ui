@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { getFirestore, collection, getDocs, updateDoc, doc, addDoc, setDoc } from 'firebase/firestore';
 import type { Subject } from '../types/study';
 import * as readline from 'readline';
@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth = getFirebaseAuth();
 const db = getFirestore(app);
 
 interface SubjectWithId extends Subject {

@@ -141,6 +141,7 @@ export function ProjectList({ projects, onUpdateProgress, onCompleteMilestone, o
           <h3 className="text-lg font-medium text-slate-200 mb-4">Active Projects</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {activeProjects.map(project => {
+              console.log('[ACTIVITIES TAB] Project:', project.id, project.name, 'Progress:', project.progress);
               const isPastDue = project.dueDate && isPast(new Date(project.dueDate));
               const isExpanded = expandedProject === project.id;
               const pendingMilestones = project.milestones.filter(m => !m.completed);

@@ -43,17 +43,19 @@ interface SubjectAnalyticsProps {
     totalTopics: number;
     lastStudied?: string;
   };
+  themeStyles?: any; // Accept themeStyles for theme-specific colors
 }
 
 export function SubjectAnalytics({ 
   subjectId, 
-  topics, 
+  topics = [],
   progress = { 
     totalXP: 0, 
     averageMastery: 0, 
     completedTopics: 0, 
     totalTopics: 0 
-  } 
+  },
+  themeStyles = {} // Default to empty object
 }: SubjectAnalyticsProps) {
   const router = useRouter();
   const [quizType, setQuizType] = useState<'all' | 'weak'>('all');
@@ -179,21 +181,21 @@ export function SubjectAnalytics({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className={`${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'} p-4 flex flex-col space-y-2`}>
           <div className="flex items-center space-x-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            <h3 className="font-medium text-slate-200">Total XP</h3>
+            <Star className={`h-5 w-5 ${themeStyles.accent || 'text-yellow-500'}`} />
+            <h3 className={`font-medium ${themeStyles.textSecondary || 'text-slate-200'}`}>Total XP</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-100">{progress.totalXP.toLocaleString()}</p>
+          <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{progress.totalXP.toLocaleString()}</p>
         </Card>
 
-        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className={`${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'} p-4 flex flex-col space-y-2`}>
           <div className="flex items-center space-x-2">
-            <Brain className="h-5 w-5 text-blue-500" />
-            <h3 className="font-medium text-slate-200">Average Mastery</h3>
+            <Brain className={`h-5 w-5 ${themeStyles.accent || 'text-blue-500'}`} />
+            <h3 className={`font-medium ${themeStyles.textSecondary || 'text-slate-200'}`}>Average Mastery</h3>
           </div>
           <div className="space-y-2">
-            <p className="text-2xl font-bold text-slate-100">{Math.round(progress.averageMastery)}%</p>
+            <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{Math.round(progress.averageMastery)}%</p>
             <div className="w-full bg-slate-800 rounded-full h-2">
               <div
                 className={cn(
@@ -207,42 +209,40 @@ export function SubjectAnalytics({
           </div>
         </Card>
 
-        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className={`${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'} p-4 flex flex-col space-y-2`}>
           <div className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5 text-green-500" />
-            <h3 className="font-medium text-slate-200">Topics</h3>
+            <Calendar className={`h-5 w-5 ${themeStyles.accent || 'text-green-500'}`} />
+            <h3 className={`font-medium ${themeStyles.textSecondary || 'text-slate-200'}`}>Topics</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-100">{progress.totalTopics}</p>
-          <p className="text-sm text-slate-400">
-            {progress.completedTopics} completed
-          </p>
+          <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{progress.totalTopics}</p>
+          <p className={`text-sm ${themeStyles.textMuted || 'text-slate-400'}`}>{progress.completedTopics} completed</p>
         </Card>
 
-        <Card className="bg-slate-950 border-slate-800 p-4 flex flex-col space-y-2">
+        <Card className={`${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'} p-4 flex flex-col space-y-2`}>
           <div className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-purple-500" />
-            <h3 className="font-medium text-slate-200">Areas to Focus</h3>
+            <TrendingUp className={`h-5 w-5 ${themeStyles.accent || 'text-purple-500'}`} />
+            <h3 className={`font-medium ${themeStyles.textSecondary || 'text-slate-200'}`}>Areas to Focus</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-100">{weakAreas.length}</p>
+          <p className={`text-2xl font-bold ${themeStyles.textPrimary || 'text-slate-100'}`}>{weakAreas.length}</p>
         </Card>
       </div>
 
-      <Card className="p-6 bg-slate-950 border-slate-800">
-        <h3 className="text-lg font-medium mb-4 text-slate-100">Areas Needing Review</h3>
+      <Card className={`p-6 ${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'}`}>
+        <h3 className={`text-lg font-medium mb-4 ${themeStyles.textPrimary || 'text-slate-100'}`}>Areas Needing Review</h3>
         {weakAreas.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {weakAreas.map((topic) => (
               <div
                 key={topic.name}
                 onClick={() => router.push(`/subjects/${subjectId}/topics/${encodeURIComponent(topic.name)}`)}
-                className="p-3 rounded-lg border border-slate-800 bg-slate-900/70 hover:bg-slate-800/70 transition-colors cursor-pointer group"
+                className={`p-3 rounded-lg ${themeStyles.border || 'border-slate-800'} ${themeStyles.cardBg || 'bg-slate-900/70'} hover:bg-slate-800/70 transition-colors cursor-pointer group`}
               >
-                <h4 className="font-medium text-sm mb-2 text-slate-100 line-clamp-1 group-hover:text-blue-400 transition-colors">
+                <h4 className={`font-medium text-sm mb-2 ${themeStyles.textPrimary || 'text-slate-100'} line-clamp-1 group-hover:text-blue-400 transition-colors`}>
                   {topic.name}
                 </h4>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300">Mastery</span>
+                    <span className={themeStyles.textSecondary || 'text-slate-300'}>Mastery</span>
                     <span className={cn(
                       "font-medium",
                       topic.masteryLevel < 40 ? "text-red-400" :
@@ -262,7 +262,7 @@ export function SubjectAnalytics({
                     />
                   </div>
                   {topic.lastStudied && (
-                    <p className="text-xs text-slate-400 truncate">
+                    <p className={`text-xs ${themeStyles.textMuted || 'text-slate-400'} truncate`}>
                       Last: {dayjs(topic.lastStudied).fromNow()}
                     </p>
                   )}
@@ -271,7 +271,7 @@ export function SubjectAnalytics({
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-slate-300">
+          <div className="text-center py-8 ${themeStyles.textMuted || 'text-slate-300'}">
             <p>No topics currently need review! 🎉</p>
             {habitTopics.length > 0 && (
               <p className="mt-2 text-sm text-slate-400">
@@ -282,10 +282,10 @@ export function SubjectAnalytics({
         )}
       </Card>
 
-      <Card className="border-slate-800 bg-slate-950">
+      <Card className={`${themeStyles.cardBg || 'bg-slate-950'} ${themeStyles.border || 'border-slate-800'}`}>
         <CardHeader>
-          <CardTitle className="flex items-center text-slate-100">
-            <Brain className="h-5 w-5 mr-2 text-blue-400" />
+          <CardTitle className={`flex items-center ${themeStyles.textPrimary || 'text-slate-100'}`}>
+            <Brain className={`h-5 w-5 mr-2 ${themeStyles.accent || 'text-blue-400'}`} />
             Practice Quiz
           </CardTitle>
         </CardHeader>
@@ -295,7 +295,7 @@ export function SubjectAnalytics({
               <Button
                 variant={quizType === 'all' ? 'default' : 'secondary'}
                 onClick={() => setQuizType('all')}
-                className="flex-1"
+                className={`flex-1 ${quizType === 'all' ? themeStyles.primary : themeStyles.secondary}`}
               >
                 <Target className="h-4 w-4 mr-2" />
                 All Topics
@@ -303,7 +303,7 @@ export function SubjectAnalytics({
               <Button
                 variant={quizType === 'weak' ? 'default' : 'secondary'}
                 onClick={() => setQuizType('weak')}
-                className="flex-1"
+                className={`flex-1 ${quizType === 'weak' ? themeStyles.primary : themeStyles.secondary}`}
               >
                 <TrendingDown className="h-4 w-4 mr-2" />
                 Focus on Weak Areas
@@ -311,7 +311,7 @@ export function SubjectAnalytics({
             </div>
             <Button
               onClick={startQuiz}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className={`w-full ${themeStyles.primary} text-white`}
             >
               <Brain className="h-4 w-4 mr-2" />
               Start Quiz

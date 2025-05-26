@@ -19,12 +19,13 @@ import { adjustReviewSchedule } from '@/lib/fsrs';
 interface ExamModeSettingsProps {
   subject: Subject;
   onUpdate: () => void;
+  compact?: boolean;
 }
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
 
-export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
+export function ExamModeSettings({ subject, onUpdate, compact }: ExamModeSettingsProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [examDate, setExamDate] = useState<Date | undefined>(
     subject.examMode?.scheduledDate ? new Date(subject.examMode.scheduledDate) : undefined
@@ -133,11 +134,54 @@ export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
     }
   };
 
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-2 p-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-300">Exam Mode</span>
+          <Switch
+            checked={subject.examMode?.isActive || false}
+            onCheckedChange={handleExamModeToggle}
+            disabled={isUpdating || subject.examMode?.completed}
+            className={subject.examMode?.isActive ? 'bg-green-500 border-green-600' : 'bg-gray-300 border-gray-400'}
+            id="exam-mode-toggle"
+          />
+          <span className={subject.examMode?.isActive ? 'text-green-500 text-xs font-bold ml-1' : 'text-gray-400 text-xs font-bold ml-1'}>
+            {subject.examMode?.isActive ? 'On' : 'Off'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="exam-date" className="text-xs">Exam Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-auto px-2 py-1 text-xs"
+              >
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {examDate ? format(examDate, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={examDate}
+                onSelect={handleDateSelect}
+                disabled={(date) => date < new Date()}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="border-slate-800 bg-slate-900/50 backdrop-blur-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className={compact ? "border-slate-800 bg-slate-900/50 p-2" : "border-slate-800 bg-slate-900/50 backdrop-blur-sm"}>
+      <CardHeader className={compact ? "flex flex-row items-center justify-between space-y-0 pb-1 px-2" : "flex flex-row items-center justify-between space-y-0 pb-2"}>
         <div className="flex items-center space-x-2">
-          <CardTitle className="text-xl text-slate-100">Exam Mode</CardTitle>
+          <CardTitle className={compact ? "text-base text-slate-100" : "text-xl text-slate-100"}>Exam Mode</CardTitle>
           {subject.examMode?.isActive && examDate && (
             <Badge variant={
               differenceInDays(new Date(examDate), new Date()) <= 7 
@@ -150,31 +194,26 @@ export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
             </Badge>
           )}
         </div>
-        <Switch
-          checked={subject.examMode?.isActive || false}
-          onCheckedChange={handleExamModeToggle}
-          disabled={isUpdating || subject.examMode?.completed}
-        />
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={compact ? "space-y-2 px-2 py-1" : "space-y-4"}>
         {subject.examMode?.isActive && !subject.examMode?.completed && (
           <>
-            <div className="space-y-2">
-              <Label htmlFor="exam-date">Exam Date</Label>
+            <div className={compact ? "space-y-1" : "space-y-2"}>
+              <Label htmlFor="exam-date" className={compact ? "text-xs" : undefined}>Exam Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      compact ? "w-full justify-start text-left font-normal text-xs py-1 px-2" : "w-full justify-start text-left font-normal",
                       !examDate && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className={compact ? "mr-1 h-3 w-3" : "mr-2 h-4 w-4"} />
                     {examDate ? format(examDate, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className={compact ? "w-auto p-0" : "w-auto p-0"} align="start">
                   <Calendar
                     mode="single"
                     selected={examDate}
@@ -187,38 +226,18 @@ export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
             </div>
 
             {reviewPlan && (
-              <div className="space-y-4 mt-6">
-                <div className="border-l-4 border-yellow-500 pl-4 py-2 bg-yellow-500/10 rounded">
-                  <p className="text-yellow-400 font-medium">{reviewPlan.message}</p>
+              <div className={compact ? "space-y-2 mt-2" : "space-y-4 mt-6"}>
+                <div className="border-l-4 border-yellow-500 pl-2 py-1 bg-yellow-500/10 rounded">
+                  <p className={compact ? "text-xs text-yellow-400 font-medium" : "text-yellow-400 font-medium"}>{reviewPlan.message}</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className={compact ? "space-y-1" : "space-y-4"}>
                   {reviewPlan.recommendations.map((rec, index) => (
-                    <div key={index} className="space-y-2">
+                    <div key={index} className={compact ? "space-y-1" : "space-y-2"}>
                       <div className="flex items-center space-x-2">
-                        {rec.priority === 'Immediate' && <AlertCircle className="h-4 w-4 text-red-500" />}
-                        {rec.priority === 'High' && <AlertCircle className="h-4 w-4 text-yellow-500" />}
-                        {rec.priority === 'Normal' && <Clock className="h-4 w-4 text-blue-500" />}
-                        <h4 className="font-medium">{rec.priority} Priority</h4>
-                      </div>
-                      
-                      <div className="pl-6">
-                        <p className="text-sm text-slate-400 mb-2">{rec.frequency}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {rec.items.map((item, i) => (
-                            <Badge 
-                              key={i}
-                              variant={
-                                item.masteryLevel < 40 ? "destructive" :
-                                item.masteryLevel < 60 ? "warning" : "default"
-                              }
-                              className="flex items-center space-x-1"
-                            >
-                              <span>{item.name}</span>
-                              <span className="text-xs">({item.masteryLevel}%)</span>
-                            </Badge>
-                          ))}
-                        </div>
+                        {rec.priority === 'Immediate' && <AlertCircle className={compact ? "h-3 w-3 text-red-500" : "h-4 w-4 text-red-500"} />}
+                        {rec.priority === 'High' && <AlertCircle className={compact ? "h-3 w-3 text-yellow-500" : "h-4 w-4 text-yellow-500"} />}
+                        <span className={compact ? "text-xs" : undefined}>{rec.text}</span>
                       </div>
                     </div>
                   ))}
@@ -309,6 +328,7 @@ export function ExamModeSettings({ subject, onUpdate }: ExamModeSettingsProps) {
           </div>
         )}
       </CardContent>
+      {!compact && <CardFooter></CardFooter>}
     </Card>
   );
 } 

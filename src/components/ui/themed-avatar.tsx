@@ -9,6 +9,7 @@ interface ThemedAvatarProps {
   xp: number;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  label?: string;
 }
 
 // Default avatar stages as fallback - updated with correct image paths
@@ -99,7 +100,8 @@ export function ThemedAvatar({
   theme,
   xp,
   size = "md",
-  className
+  className,
+  label
 }: ThemedAvatarProps) {
   const [stages, setStages] = useState(defaultAvatarStages[theme as keyof typeof defaultAvatarStages] || defaultAvatarStages.classic);
   const bgColor = themeBackgroundColors[theme as keyof typeof themeBackgroundColors] || themeBackgroundColors.classic;
@@ -139,14 +141,10 @@ export function ThemedAvatar({
             target.style.display = 'none';
           }}
         />
-        {/* Fallback text if image fails */}
-        <span className="text-white text-xs font-bold z-10">
-          {currentStage.name.charAt(0)}
-        </span>
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 p-1 text-xs text-center text-white/90 bg-black/30">
-        {currentStage.name}
+      <div className={`absolute bottom-0 left-0 right-0 p-1 text-xs text-center bg-black/30 ${theme === 'dbz' ? 'font-bold text-yellow-300 mt-1' : 'font-semibold ' + (themeConfig[theme]?.accent || 'text-white/90')}`}>
+        {label || ''}
       </div>
     </motion.div>
   );
