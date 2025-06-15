@@ -15,10 +15,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ThemedHeader } from '@/components/ui/themed-header';
+import { useTheme } from '@/contexts/theme-context';
 
 export default function ContentPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
   const [contentTree, setContentTree] = useState<ContentTree | null>(null);
   const [recentItems, setRecentItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,167 +154,102 @@ export default function ContentPage() {
   }
   
   return (
-    <div className="flex h-screen bg-slate-950 text-white">
-      {contentTree && (
-        <ContentSidebar 
-          tree={contentTree}
-          onCreateItem={(parentId, type) => {
-            if (type === 'folder') {
-              setCreateDialogOpen(true);
-            } else {
-              // For other types, navigate to the create page with the parent ID
-              router.push(`/content/create?type=${type}${parentId ? `&parentId=${parentId}` : ''}`);
-            }
-          }}
-          onDeleteItem={(id) => {
-            // Handle delete in the item page
-            router.push(`/content/${id}`);
-          }}
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title="Content Library"
+          subtitle="Organize your knowledge"
+          className="mb-6 shadow-lg"
         />
-      )}
-      
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold">Content Library</h1>
-            
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <Input
-                  type="text"
-                  placeholder="Search content..."
-                  className="pl-9 w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+      </div>
+
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Sidebar luxury card (hidden on mobile, handled by Navbar) */}
+          <div className="hidden md:block col-span-1">
+            {contentTree && (
+              <div className="luxury-card p-0 h-full">
+                <ContentSidebar
+                  tree={contentTree}
+                  onCreateItem={(parentId, type) => {
+                    if (type === 'folder') {
+                      setCreateDialogOpen(true);
+                    } else {
+                      router.push(`/content/create?type=${type}${parentId ? `&parentId=${parentId}` : ''}`);
+                    }
+                  }}
+                  onDeleteItem={(id) => {
+                    router.push(`/content/${id}`);
+                  }}
                 />
               </div>
-              
-              <Button onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Folder
-              </Button>
+            )}
+          </div>
+
+          {/* Main content area luxury card */}
+          <div className="col-span-1 md:col-span-3">
+            <div className="luxury-card p-8 flex flex-col gap-6 animate-fadeIn">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+                <h1 className="text-3xl font-bold tracking-tight">Content Library</h1>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                    <Input
+                      type="text"
+                      placeholder="Search content..."
+                      className="pl-9 w-full md:w-64 rounded-lg shadow focus:ring-2 focus:ring-blue-500"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={() => setCreateDialogOpen(true)} className="rounded-lg shadow bg-blue-600 hover:bg-blue-700 transition-all">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Folder
+                  </Button>
+                </div>
+              </div>
+
+              {/* Search Results luxury card */}
+              {searchQuery && (
+                <div className="luxury-card p-6 animate-fadeIn">
+                  <h2 className="text-xl font-semibold mb-4">Search Results</h2>
+                  {isSearching ? (
+                    <div className="flex items-center gap-2 text-blue-400"><Loader2 className="animate-spin" /> Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="text-slate-400">No results found.</div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {searchResults.map((item) => (
+                        <li key={item.id} className="p-3 rounded-lg hover:bg-blue-50/10 transition cursor-pointer flex items-center gap-3">
+                          {getItemIcon(item.type)}
+                          <span className="font-medium text-lg text-slate-100">{item.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Recent Items luxury card */}
+              <div className="luxury-card p-6 animate-fadeIn">
+                <h2 className="text-xl font-semibold mb-4">Recent Items</h2>
+                {recentItems.length === 0 ? (
+                  <div className="text-slate-400">No recent items yet.</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {recentItems.map((item) => (
+                      <li key={item.id} className="p-3 rounded-lg hover:bg-blue-50/10 transition cursor-pointer flex items-center gap-3">
+                        {getItemIcon(item.type)}
+                        <span className="font-medium text-lg text-slate-100">{item.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
-          
-          {/* Search Results */}
-          {searchQuery && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">
-                Search Results {isSearching && <Loader2 className="inline h-4 w-4 animate-spin ml-2" />}
-              </h2>
-              
-              {searchResults.length === 0 && !isSearching ? (
-                <p className="text-slate-400">No results found for "{searchQuery}"</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {searchResults.map(item => (
-                    <Card 
-                      key={item.id}
-                      className="p-4 hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => router.push(`/content/${item.id}`)}
-                    >
-                      <div className="flex items-start gap-3">
-                        {getItemIcon(item.type)}
-                        <div>
-                          <h3 className="font-medium">{item.name}</h3>
-                          {item.description && (
-                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">{item.description}</p>
-                          )}
-                          <p className="text-xs text-slate-500 mt-2">
-                            Updated {new Date(item.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Recent Items */}
-          {!searchQuery && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4">Recent Items</h2>
-              
-              {recentItems.length === 0 ? (
-                <p className="text-slate-400">No recent items. Create some content to get started!</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {recentItems.map(item => (
-                    <Card 
-                      key={item.id}
-                      className="p-4 hover:bg-slate-800 cursor-pointer transition-colors"
-                      onClick={() => router.push(`/content/${item.id}`)}
-                    >
-                      <div className="flex items-start gap-3">
-                        {getItemIcon(item.type)}
-                        <div>
-                          <h3 className="font-medium">{item.name}</h3>
-                          {item.description && (
-                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">{item.description}</p>
-                          )}
-                          <p className="text-xs text-slate-500 mt-2">
-                            Updated {new Date(item.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Getting Started */}
-          {!searchQuery && recentItems.length === 0 && (
-            <div className="bg-slate-800/50 rounded-lg p-6 mt-8">
-              <h2 className="text-xl font-semibold mb-4">Getting Started</h2>
-              <p className="text-slate-300 mb-6">
-                Welcome to your Content Library! This is where you can organize all your study materials in a flexible, hierarchical structure.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-4 bg-slate-800">
-                  <h3 className="font-medium mb-2 flex items-center gap-2">
-                    <FolderIcon className="h-5 w-5 text-yellow-500" />
-                    Create Folders
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    Organize your content into folders and subfolders, just like in Notion.
-                  </p>
-                </Card>
-                
-                <Card className="p-4 bg-slate-800">
-                  <h3 className="font-medium mb-2 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-blue-500" />
-                    Add Subjects & Topics
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    Create subjects and topics to organize your study materials.
-                  </p>
-                </Card>
-                
-                <Card className="p-4 bg-slate-800">
-                  <h3 className="font-medium mb-2 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-green-500" />
-                    Take Notes
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    Create notes and concepts to capture your knowledge.
-                  </p>
-                </Card>
-              </div>
-              
-              <div className="mt-6 flex justify-center">
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Folder
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
       

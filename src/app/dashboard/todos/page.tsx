@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ThemedHeader } from '@/components/ui/themed-header';
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -281,190 +282,83 @@ export default function TodosPage() {
   }
 
   return (
-    <div className="min-h-screen text-white" suppressHydrationWarning>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">{themeStyles.header}</h1>
-        
-        {/* Debug section */}
-        <div className={`${themeStyles.cardBg} p-4 rounded-lg shadow-lg mb-4 ${themeStyles.border}`}>
-          <h3 className="text-sm font-semibold mb-2">Debug Info</h3>
-          <p className="text-xs mb-2">User: {user ? `${user.uid.substring(0, 8)}...` : 'Not authenticated'}</p>
-          <p className="text-xs mb-2">Firebase DB: {db ? 'Initialized' : 'Not initialized'}</p>
-          <p className="text-xs mb-2">Firebase Auth: {auth ? 'Initialized' : 'Not initialized'}</p>
-          <div className="flex gap-2 mt-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => {
-                console.log("Debug - Current user:", user);
-                console.log("Debug - Firebase DB:", db);
-                console.log("Debug - Firebase Auth:", auth);
-                toast.info("Check console for debug info");
-              }}
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title={themeStyles.header}
+          subtitle="Stay on top of your tasks"
+          className="mb-6 shadow-lg"
+        />
+      </div>
+
+      <div className="flex-1 w-full max-w-3xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        {/* Streak luxury widget */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8 flex items-center gap-6">
+          <div className="flex flex-col items-center justify-center">
+            <span className="text-4xl font-bold animate-pulse">🔥</span>
+            <span className="text-lg font-semibold mt-2">Streak</span>
+            <span className="text-2xl font-bold mt-1">3 days</span>
+            <span className="text-xs text-slate-400">Keep your streak alive!</span>
+          </div>
+        </div>
+
+        {/* Quick Add Todo luxury card */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8">
+          <h2 className="text-xl font-semibold mb-4">Add New Todo</h2>
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <Input
+              type="text"
+              placeholder="What needs to be done?"
+              value={newTodo}
+              onChange={e => setNewTodo(e.target.value)}
+              className="rounded-lg shadow w-full md:w-1/3"
+            />
+            <Input
+              type="text"
+              placeholder="Description (optional)"
+              value={newDescription}
+              onChange={e => setNewDescription(e.target.value)}
+              className="rounded-lg shadow w-full md:w-1/2"
+            />
+            <Button
+              onClick={handleAddTodo}
+              className="rounded-lg shadow bg-blue-600 hover:bg-blue-700 transition-all px-6 py-3 text-lg font-semibold"
+              disabled={!newTodo.trim()}
             >
-              Log Debug Info
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={async () => {
-                try {
-                  const testData = {
-                    test: true,
-                    timestamp: new Date().toISOString(),
-                    userId: user?.uid || 'anonymous'
-                  };
-                  
-                  const testRef = await addDoc(collection(db, "test_collection"), testData);
-                  console.log("Test document written with ID: ", testRef.id);
-                  toast.success("Test write successful!");
-                } catch (error) {
-                  console.error("Error writing test document: ", error);
-                  toast.error(`Test write failed: ${error.message}`);
-                }
-              }}
-            >
-              Test Firestore Write
+              <Plus className="h-5 w-5 mr-2" /> Add Todo
             </Button>
           </div>
         </div>
-        
-        {isClient && (
-          <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg mb-8 ${themeStyles.border}`}>
-            <h2 className="text-xl font-semibold mb-4">Add New Todo</h2>
-            <div className="flex flex-col space-y-4">
-              <Input
-                type="text"
-                placeholder="What needs to be done?"
-                value={newTodo}
-                onChange={(e) => setNewTodo(e.target.value)}
-                className={`bg-slate-700 border ${themeStyles.border}`}
-              />
-              <Input
-                type="text"
-                placeholder="Description (optional)"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                className={`bg-slate-700 border ${themeStyles.border}`}
-              />
-              <div className="flex items-center space-x-4">
-                <label className={themeStyles.textSecondary}>Priority:</label>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setNewPriority('low')}
-                    className={`px-3 py-1 rounded-md ${newPriority === 'low' ? 'bg-green-600' : 'bg-slate-700'}`}
-                  >
-                    Low
-                  </button>
-                  <button
-                    onClick={() => setNewPriority('medium')}
-                    className={`px-3 py-1 rounded-md ${newPriority === 'medium' ? 'bg-yellow-600' : 'bg-slate-700'}`}
-                  >
-                    Medium
-                  </button>
-                  <button
-                    onClick={() => setNewPriority('high')}
-                    className={`px-3 py-1 rounded-md ${newPriority === 'high' ? 'bg-red-600' : 'bg-slate-700'}`}
-                  >
-                    High
-                  </button>
-                </div>
-              </div>
-              <Button
-                onClick={handleAddTodo}
-                disabled={!newTodo.trim()}
-                className={`${themeStyles.primary} flex items-center`}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Todo
-              </Button>
-            </div>
-          </div>
-        )}
-        
-        <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Your Todos</h2>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1 rounded-md ${filter === 'all' ? themeStyles.primary : 'bg-slate-700'}`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilter('active')}
-                className={`px-3 py-1 rounded-md ${filter === 'active' ? themeStyles.primary : 'bg-slate-700'}`}
-              >
-                Active
-              </button>
-              <button
-                onClick={() => setFilter('completed')}
-                className={`px-3 py-1 rounded-md ${filter === 'completed' ? themeStyles.primary : 'bg-slate-700'}`}
-              >
-                Completed
-              </button>
-            </div>
-          </div>
-          
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className={`h-8 w-8 animate-spin ${themeStyles.accent}`} />
-            </div>
-          ) : filteredTodos.length > 0 ? (
-            <div className="space-y-4">
-              {filteredTodos.map(todo => (
-                <div
-                  key={todo.id}
-                  className={`${themeStyles.itemCard} p-4 rounded-lg flex items-start justify-between ${themeStyles.border}`}
-                >
-                  <div className="flex items-start space-x-3 flex-grow">
-                    <button
-                      onClick={() => handleToggleComplete(todo.id)}
-                      className={`p-2 rounded-full ${todo.completed ? 'bg-green-600' : 'bg-slate-600'} hover:bg-opacity-80 transition mt-1`}
-                    >
-                      {todo.completed ? (
-                        <Check className="h-4 w-4 text-white" />
-                      ) : (
-                        <div className="h-4 w-4" />
-                      )}
-                    </button>
-                    <div className="flex-grow">
-                      <h3 className={`font-medium ${todo.completed ? 'line-through text-slate-400' : themeStyles.textPrimary}`}>
-                        {todo.title}
-                      </h3>
-                      {todo.description && (
-                        <p className={`text-sm mt-1 ${todo.completed ? 'line-through text-slate-500' : themeStyles.textMuted}`}>
-                          {todo.description}
-                        </p>
-                      )}
-                      <div className="flex items-center mt-2 text-xs text-slate-400">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>Created {format(new Date(todo.createdAt), 'MMM d, yyyy')}</span>
-                        <div className={`ml-3 w-2 h-2 rounded-full ${getPriorityColor(todo.priority)}`} />
-                        <span className="ml-1">{todo.priority}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteTodo(todo.id)}
-                    className="p-2 text-slate-400 hover:text-red-400 transition"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+
+        {/* Todos List luxury cards */}
+        <div className="grid grid-cols-1 gap-6">
+          {todos.length === 0 ? (
+            <div className="luxury-card p-8 text-center text-slate-400 animate-fadeIn">No todos yet. Start by adding one above!</div>
           ) : (
-            <div className="text-center py-8">
-              <p className={themeStyles.textMuted}>
-                {filter === 'all' 
-                  ? "You don't have any todos yet." 
-                  : filter === 'active' 
-                    ? "You don't have any active todos." 
-                    : "You don't have any completed todos."}
-              </p>
-            </div>
+            todos.map(todo => (
+              <div key={todo.id} className="luxury-card p-6 animate-fadeIn flex flex-col gap-2">
+                <div className="flex items-center gap-4 mb-2">
+                  <button
+                    onClick={() => handleToggleComplete(todo.id)}
+                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${todo.completed ? 'bg-green-500 border-green-500' : 'bg-slate-800 border-slate-500 hover:bg-slate-700'}`}
+                    aria-label={todo.completed ? 'Mark as active' : 'Mark as completed'}
+                  >
+                    {todo.completed && <Check className="h-4 w-4 text-white" />}
+                  </button>
+                  <div className="flex-1">
+                    <span className={`text-lg font-semibold ${todo.completed ? 'line-through text-slate-400' : 'text-slate-100'}`}>{todo.title}</span>
+                    {todo.description && <p className="text-slate-400 text-sm mt-1">{todo.description}</p>}
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getPriorityColor(todo.priority)}`}>{todo.priority}</span>
+                  <Button size="sm" variant="destructive" className="rounded-lg shadow hover:shadow-lg transition-all" onClick={() => handleDeleteTodo(todo.id)}>
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+                {todo.dueDate && <span className="text-xs text-slate-400">Due: {format(new Date(todo.dueDate), 'MMM d')}</span>}
+              </div>
+            ))
           )}
         </div>
       </div>

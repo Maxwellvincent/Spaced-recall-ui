@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface ContentSidebarProps {
   tree: ContentTree;
@@ -195,40 +196,59 @@ export default function ContentSidebar({
   };
   
   return (
-    <div className="h-full bg-slate-900 border-r border-slate-800 w-64 overflow-y-auto">
-      <div className="p-4 border-b border-slate-800">
-        <div className="flex justify-between items-center">
-          <h2 className="font-semibold text-white">Content</h2>
-          <Button size="sm" variant="outline" onClick={() => onCreateItem && onCreateItem(undefined, 'folder')}>
-            <Plus className="h-4 w-4 mr-1" />
+    <aside
+      className="hidden md:block h-full w-72 p-0 bg-transparent"
+      aria-label="Sidebar navigation"
+    >
+      <div className="luxury-card h-full w-full flex flex-col overflow-y-auto">
+        <div className="p-6 border-b border-white/10 dark:border-slate-800/60 flex justify-between items-center">
+          <h2 className="font-semibold text-lg tracking-tight text-slate-900 dark:text-white">Content</h2>
+          <Button size="sm" variant="outline" className="rounded-full px-3 py-1.5 text-base font-semibold shadow-md hover:shadow-lg" onClick={() => onCreateItem && onCreateItem(undefined, 'folder')}>
+            <Plus className="h-5 w-5 mr-2" />
             New
           </Button>
         </div>
+        <nav className="py-4 px-2 flex-1">
+          {tree.rootItems
+            .sort((a, b) => {
+              const itemA = tree.itemsById[a];
+              const itemB = tree.itemsById[b];
+              return (itemA?.order || 0) - (itemB?.order || 0);
+            })
+            .map(itemId => (
+              <TreeItem
+                key={itemId}
+                itemId={itemId}
+                tree={tree}
+                level={0}
+                currentItemId={currentItemId}
+                expandedItems={expandedItems}
+                onToggleExpand={handleToggleExpand}
+                onSelectItem={handleSelectItem}
+                onCreateItem={onCreateItem}
+                onMoveItem={onMoveItem}
+                onDeleteItem={onDeleteItem}
+              />
+            ))}
+        </nav>
       </div>
-      
-      <div className="py-2">
-        {tree.rootItems
-          .sort((a, b) => {
-            const itemA = tree.itemsById[a];
-            const itemB = tree.itemsById[b];
-            return (itemA?.order || 0) - (itemB?.order || 0);
-          })
-          .map(itemId => (
-            <TreeItem
-              key={itemId}
-              itemId={itemId}
-              tree={tree}
-              level={0}
-              currentItemId={currentItemId}
-              expandedItems={expandedItems}
-              onToggleExpand={handleToggleExpand}
-              onSelectItem={handleSelectItem}
-              onCreateItem={onCreateItem}
-              onMoveItem={onMoveItem}
-              onDeleteItem={onDeleteItem}
-            />
-          ))}
-      </div>
-    </div>
+    </aside>
+  );
+}
+
+// Mobile version: sidebar in a Dialog (sheet/drawer)
+export function ContentSidebarMobile({
+  open,
+  onOpenChange,
+  ...props
+}: ContentSidebarProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="p-0 max-w-xs left-0 top-0 translate-x-0 translate-y-0 h-full rounded-none border-none shadow-2xl bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl">
+        <div className="h-full w-72 flex flex-col">
+          <ContentSidebar {...props} />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 } 

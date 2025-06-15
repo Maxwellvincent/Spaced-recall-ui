@@ -12,6 +12,7 @@ import { ThemedAvatar, ThemedProgress } from '@/components/ui/themed-components'
 import { calculateUserXP } from '@/utils/calculateUserXP';
 import { useLoginStreak } from '@/hooks/useLoginStreak';
 import { getProgressBarGradientClass } from '@/lib/utils/progressBarGradient';
+import { ThemedHeader } from '@/components/ui/themed-header';
 
 console.log({ UserCircle, Award, TrendingUp, BookOpen, Plus, Star });
 
@@ -211,146 +212,70 @@ export default function DashboardHomePage() {
   console.log('recentActivity (final)', recentActivity);
 
   return (
-    <div className="container mx-auto py-8 max-w-6xl">
-      {/* User Stats Card */}
-      <div className={`flex flex-col md:flex-row gap-6 mb-8`}>
-        <div className={`flex-1 ${currentTheme.cardBg} rounded-xl p-6 flex flex-col md:flex-row items-center gap-6 shadow-lg ${currentTheme.border}`}>
-          <div className="flex flex-col items-center md:items-start gap-2">
-            <div className="rounded-full bg-slate-800 p-2 mb-2">
-              <ThemedAvatar theme={theme} xp={avatarXP} size="xl" label={isDbz ? dbzMilestone : currentTheme.label} />
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title={displayName || 'Welcome'}
+          subtitle={quote}
+          className="mb-6 shadow-lg"
+        />
+      </div>
+
+      {/* Main Dashboard Content */}
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Stats Card */}
+          <div className="luxury-card p-8 flex flex-col items-center justify-center text-center">
+            <ThemedAvatar theme={theme} xp={userStats?.totalXP || 0} size="xl" />
+            <h2 className="mt-4 text-2xl font-bold tracking-tight">Level {currentLevel}</h2>
+            <p className="text-slate-500 mt-1">{currentTheme.label}</p>
+            <div className="mt-4 w-full">
+              <ThemedProgress
+                theme={theme}
+                progress={levelProgress.percent}
+                currentXP={levelProgress.currentXP}
+                neededXP={levelProgress.neededXP}
+                className="w-full"
+              />
             </div>
-            <div className="text-xl font-bold text-white">{displayName}</div>
-            {/* Theme-specific characterization line */}
-            {isDbz ? (
-              dbzMilestone && <div className="text-xs font-bold text-yellow-300 mt-1">{dbzMilestone}</div>
-            ) : (
-              <div className={`text-sm font-semibold ${currentTheme.accent}`}>{currentTheme.label}</div>
-            )}
-            <div className="flex gap-3 mt-2">
-              <span className={`flex items-center gap-1 ${currentTheme.accent}`}><Award className="w-5 h-5" /> Level {level}</span>
-              {isDbz ? (
-                <span className="flex items-center gap-1 text-yellow-400">Power Level: {powerLevel.toLocaleString()}</span>
-              ) : (
-                <span className="flex items-center gap-1 text-yellow-400">XP: {xp}</span>
+          </div>
+
+          {/* Quick Actions Card */}
+          <div className="luxury-card p-8 flex flex-col gap-4 items-center justify-center">
+            <button className="w-full flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow transition-all text-lg">
+              <BookOpen className="w-5 h-5" /> Start Study Session
+            </button>
+            <button className="w-full flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow transition-all text-lg">
+              <Plus className="w-5 h-5" /> Add Project
+            </button>
+            <button className="w-full flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow transition-all text-lg">
+              <Star className="w-5 h-5" /> Take Quiz
+            </button>
+            <button className="w-full flex items-center gap-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium shadow transition-all text-lg">
+              <Star className="w-5 h-5" /> Log Habit
+            </button>
+          </div>
+
+          {/* Recent Activity Card */}
+          <div className="luxury-card p-8 flex flex-col">
+            <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
+            <ul className="space-y-3">
+              {recentActivity.length === 0 && (
+                <li className="text-slate-400">No recent activity yet.</li>
               )}
-              <span className="flex items-center gap-1 text-yellow-400"><Star className="w-5 h-5" /> Streak: {streak} days</span>
-            </div>
-          </div>
-          {/* Progress Bar */}
-          <div className="flex-1 w-full mt-6 md:mt-0 md:ml-8">
-            <ThemedProgress
-              theme={theme}
-              progress={progressPercent}
-              currentXP={progressCurrent}
-              neededXP={progressNeeded}
-              className="w-full"
-            />
+              {recentActivity.map((act, idx) => (
+                <li key={idx} className="flex items-center gap-3 text-slate-200">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                  <span>{act.description || act.name || 'Activity'}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-        {/* Quick Actions */}
-        <div className="flex flex-col gap-3 min-w-[220px]">
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow">
-            <BookOpen className="w-5 h-5" /> Start Study Session
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow">
-            <Plus className="w-5 h-5" /> Add Project
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shadow">
-            <Star className="w-5 h-5" /> Take Quiz
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium shadow">
-            <Star className="w-5 h-5" /> Log Habit
-          </button>
-        </div>
-      </div>
 
-      {/* Widgets Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Pathways Progress */}
-        <div className={`${currentTheme.cardBg} rounded-xl p-6 shadow-lg ${currentTheme.border}`}>
-          <div className="font-semibold text-slate-200 mb-2">Your Pathways</div>
-          {pathways.length === 0 ? (
-            <div className="text-slate-400">No pathways joined yet.</div>
-          ) : (
-            pathways.map((p) => {
-              const pathwayId = p.pathwayId || p.id || p.name;
-              const progress = pathwayProgress[pathwayId] || 0;
-              return (
-                <Link key={pathwayId} href={`/dashboard/pathways/${pathwayId}`}
-                  className="block mb-3 hover:bg-slate-800/40 rounded-lg transition p-2">
-                  <div className="flex justify-between text-slate-300 text-sm">
-                    <span>{p.name || pathwayId}</span>
-                    <span>{progress ? `${progress}%` : ""}</span>
-                  </div>
-                  <div className={`relative h-4 w-full rounded-full overflow-hidden ${currentTheme.cardBg} border-2 ${currentTheme.border} shadow-[0_0_15px_rgba(234,179,8,0.3)]`}>
-                    <div
-                      className={`h-full rounded-full ${getProgressBarGradientClass(theme)}`}
-                      style={{ width: `${progress}%` }}
-                    />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow">
-                      {progress}%
-                    </span>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </div>
-        {/* Projects Overview */}
-        <div className={`${currentTheme.cardBg} rounded-xl p-6 shadow-lg ${currentTheme.border}`}>
-          <div className="font-semibold text-slate-200 mb-2">Active Projects</div>
-          {projects.length === 0 ? (
-            <div className="text-slate-400">No active projects.</div>
-          ) : (
-            projects.map((proj) => (
-              <div key={proj.name || proj.id} className="flex justify-between text-slate-300 mb-2">
-                <span>{proj.name}</span>
-                <span className={proj.status === 'Active' ? 'text-blue-400' : 'text-green-400'}>{proj.status}</span>
-              </div>
-            ))
-          )}
-        </div>
-        {/* Rewards/Achievements */}
-        <div className={`${currentTheme.cardBg} rounded-xl p-6 shadow-lg ${currentTheme.border}`}>
-          <div className="font-semibold text-slate-200 mb-2">Latest Rewards & Achievements</div>
-          <div className="flex flex-wrap gap-3">
-            {rewards.length === 0 ? (
-              <span className="text-slate-400">No rewards yet.</span>
-            ) : (
-              rewards.map((reward) => (
-                <div key={reward.name || reward.id} className="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-full text-sm text-slate-100">
-                  {/* You can add icons based on reward type here */}
-                  <span>{reward.name}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className={`${currentTheme.cardBg} rounded-xl p-6 shadow-lg mb-8 ${currentTheme.border}`}>
-        <div className="font-semibold text-slate-200 mb-4">Recent Activity</div>
-        <ul className="divide-y divide-slate-800">
-          {recentActivity.length === 0 ? (
-            <li className="py-2 text-slate-400">No recent activity.</li>
-          ) : (
-            recentActivity.map((act, idx) => (
-              <li key={idx} className="py-2 flex justify-between text-slate-300">
-                <span>{act.type}: <span className="font-medium text-white">{act.detail}</span></span>
-                <span className="text-slate-400 text-xs">{act.date}</span>
-              </li>
-            ))
-          )}
-        </ul>
-      </div>
-
-      {/* Note/Goals Section */}
-      <NoteGoalsSection user={user} currentTheme={currentTheme} />
-
-      {/* Motivational Quote */}
-      <div className="bg-blue-900/80 rounded-xl p-6 shadow-lg text-center text-blue-100 text-lg font-medium">
-        <span className="italic">"{quote}"</span>
+        {/* Additional luxury widgets/sections can go here */}
       </div>
     </div>
   );

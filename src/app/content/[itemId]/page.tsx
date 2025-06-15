@@ -37,9 +37,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import { ThemedHeader } from '@/components/ui/themed-header';
+import { useTheme } from '@/contexts/theme-context';
 
 export default function ContentItemPage() {
   const { user, loading: authLoading } = useAuth();
+  const { theme } = useTheme();
   const router = useRouter();
   const params = useParams();
   const itemId = params.itemId as string;
@@ -438,73 +441,86 @@ export default function ContentItemPage() {
   }
   
   return (
-    <div className="flex h-screen bg-slate-950 text-white">
-      <ContentSidebar 
-        tree={contentTree}
-        currentItemId={itemId}
-        onCreateItem={(parentId, type) => {
-          setCreateType(type);
-          setCreateDialogOpen(true);
-        }}
-        onDeleteItem={(id) => {
-          if (id === itemId) {
-            setDeleteDialogOpen(true);
-          }
-        }}
-      />
-      
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <Breadcrumb>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/content">Content</BreadcrumbLink>
-                </BreadcrumbItem>
-                
-                {breadcrumbs.map((item) => (
-                  <BreadcrumbItem key={item.id}>
-                    <ChevronRight className="h-4 w-4" />
-                    <BreadcrumbLink href={`/content/${item.id}`}>{item.name}</BreadcrumbLink>
-                  </BreadcrumbItem>
-                ))}
-                
-                <BreadcrumbItem>
-                  <ChevronRight className="h-4 w-4" />
-                  <span>{contentItem.name}</span>
-                </BreadcrumbItem>
-              </Breadcrumb>
-              
-              <h1 className="text-3xl font-bold mt-2 flex items-center gap-2">
-                {getItemIcon(contentItem.type)}
-                {contentItem.name}
-              </h1>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                onClick={() => setCreateDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create
-              </Button>
-              
-              <Button 
-                variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title={contentItem.name}
+          subtitle={contentItem.type.charAt(0).toUpperCase() + contentItem.type.slice(1)}
+          className="mb-6 shadow-lg"
+        />
+      </div>
+
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Sidebar luxury card (hidden on mobile, handled by Navbar) */}
+          <div className="hidden md:block col-span-1">
+            {contentTree && (
+              <div className="luxury-card p-0 h-full">
+                <ContentSidebar
+                  tree={contentTree}
+                  currentItemId={itemId}
+                  onCreateItem={(parentId, type) => {
+                    setCreateType(type);
+                    setCreateDialogOpen(true);
+                  }}
+                  onDeleteItem={(id) => {
+                    if (id === itemId) {
+                      setDeleteDialogOpen(true);
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
-          
-          <div className="mt-6">
-            {renderContentByType()}
+
+          {/* Main content area luxury card */}
+          <div className="col-span-1 md:col-span-3">
+            <div className="luxury-card p-8 flex flex-col gap-6 animate-fadeIn">
+              {/* Breadcrumbs luxury card */}
+              <div className="flex items-center gap-2 mb-4">
+                <Breadcrumb>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink href="/content">Content</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  {breadcrumbs.map((item) => (
+                    <BreadcrumbItem key={item.id}>
+                      <ChevronRight className="h-4 w-4 text-blue-400" />
+                      <BreadcrumbLink href={`/content/${item.id}`}>{item.name}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                  ))}
+                  <BreadcrumbItem>
+                    <ChevronRight className="h-4 w-4 text-blue-400" />
+                    <span className="font-semibold text-slate-100">{contentItem.name}</span>
+                  </BreadcrumbItem>
+                </Breadcrumb>
+              </div>
+
+              {/* Main content luxury card */}
+              <div className="flex flex-col gap-4">
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  {getItemIcon(contentItem.type)}
+                  {contentItem.name}
+                </h1>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setCreateDialogOpen(true)} className="rounded-lg shadow hover:shadow-lg transition-all">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create
+                  </Button>
+                  <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)} className="rounded-lg shadow hover:shadow-lg transition-all">
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-6">
+                  {renderContentByType()}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      
+
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>

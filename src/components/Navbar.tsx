@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth";
@@ -11,17 +11,76 @@ import Link from "next/link";
 import { Home, BookOpen, Clock, Gift, LogOut, LogIn, User, Brain, BarChart, Menu, X, CheckCircle, ChevronDown, Plus } from "lucide-react";
 import { ThemedAvatar } from "./ui/themed-components";
 import { themeConfig } from "@/config/themeConfig";
+import { ContentSidebarMobile } from './ContentSidebar';
+import { getUserContentTree, createFolder, deleteContentItem } from '@/lib/contentService';
+import { toast } from 'sonner';
 
 export default function Navbar() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
   const [userXP, setUserXP] = useState(0);
   const [userRank, setUserRank] = useState("");
   const [loading, setLoading] = useState(true);
   const [userTheme, setUserTheme] = useState(theme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [contentTree, setContentTree] = useState(null);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
+  const pathname = usePathname();
+
+  // Extract currentItemId from /content/[itemId] route
+  let currentItemId = undefined;
+  if (pathname && pathname.startsWith('/content/')) {
+    const parts = pathname.split('/');
+    if (parts.length > 2 && parts[2]) {
+      currentItemId = parts[2];
+    }
+  }
+
+  // Load content tree for sidebar
+  useEffect(() => {
+    if (!user) return;
+    setSidebarLoading(true);
+    getUserContentTree(user.uid)
+      .then(tree => setContentTree(tree))
+      .catch(() => toast.error('Failed to load content structure'))
+      .finally(() => setSidebarLoading(false));
+  }, [user]);
+
+  // Handlers for sidebar actions
+  const handleCreateItem = async (parentId, type) => {
+    if (type === 'folder') {
+      // For demo, just create a folder and reload tree
+      try {
+        await createFolder('New Folder', '', parentId);
+        toast.success('Folder created');
+        if (user) {
+          const tree = await getUserContentTree(user.uid);
+          setContentTree(tree);
+        }
+      } catch {
+        toast.error('Failed to create folder');
+      }
+    } else {
+      // For other types, navigate to create page
+      router.push(`/content/create?type=${type}${parentId ? `&parentId=${parentId}` : ''}`);
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    try {
+      await deleteContentItem(itemId);
+      toast.success('Item deleted');
+      if (user) {
+        const tree = await getUserContentTree(user.uid);
+        setContentTree(tree);
+      }
+    } catch {
+      toast.error('Failed to delete item');
+    }
+  };
 
   useEffect(() => {
     // Fetch user's XP and theme from Firestore when the user changes
@@ -188,24 +247,21 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
             {/* Logo Area with Avatar Menu Button */}
             <div className="flex items-center gap-4">
-              <button 
-                onClick={toggleMobileMenu}
-                className="relative flex items-center justify-center focus:outline-none"
-                aria-label="Toggle Menu"
+              {/* Mobile sidebar toggle button */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden relative flex items-center justify-center focus:outline-none"
+                aria-label="Open Sidebar"
               >
-                <div className={`${mobileMenuOpen ? 'ring-2 ring-white' : ''} rounded-full transition-all`}>
-                  <ThemedAvatar 
-                    theme={userTheme} 
-                    xp={userXP} 
-                    size="lg" 
+                <div className="rounded-full transition-all">
+                  <ThemedAvatar
+                    theme={userTheme}
+                    xp={userXP}
+                    size="lg"
                   />
                 </div>
                 <div className={`absolute bottom-0 right-0 ${getThemeColor()} rounded-full w-6 h-6 flex items-center justify-center border border-slate-800`}>
-                  {mobileMenuOpen ? (
-                    <X className="h-4 w-4" />
-                  ) : (
-                    <Menu className="h-4 w-4" />
-                  )}
+                  <Menu className="h-4 w-4" />
                 </div>
               </button>
               
@@ -329,95 +385,17 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 top-[88px] z-50 bg-black/60">
-          <div className="bg-slate-900 w-80 max-w-xs h-full overflow-y-auto absolute right-0 shadow-xl">
-            <div className="p-4">
-              {navLinks.map((link, index) => (
-                link.children ? (
-                  <div key={index}>
-                    <button
-                      className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-slate-800 mb-2"
-                      onClick={() => toggleDropdown(link.label)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
-                          {link.icon}
-                        </div>
-                        {link.label}
-                      </div>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === link.label ? 'rotate-180' : ''}`} />
-                    </button>
-                    {activeDropdown === link.label && (
-                      <div className="pl-4 mb-2">
-                        {link.children.map((childLink, childIndex) => (
-                          childLink.type === "separator" ? (
-                            <div key={childIndex} className="h-px bg-slate-700 my-1" />
-                          ) : childLink.children ? (
-                            <div key={childIndex}>
-                              <button
-                                className="flex items-center justify-between w-full px-4 py-2 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
-                                onClick={() => toggleDropdown(childLink.label)}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
-                                    {childLink.icon}
-                                  </div>
-                                  {childLink.label}
-                                </div>
-                                <ChevronDown className={`h-3 w-3 transition-transform ${activeDropdown === childLink.label ? 'rotate-180' : ''}`} />
-                              </button>
-                              {activeDropdown === childLink.label && (
-                                <div className="pl-4 mb-1">
-                                  {childLink.children.map((subLink, subIndex) => (
-                                    <button
-                                      key={subIndex}
-                                      onClick={() => handleNavigation(subLink.href)}
-                                      className="flex items-center gap-2 w-full px-4 py-2 text-left rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
-                                    >
-                                      <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
-                                        {subLink.icon}
-                                      </div>
-                                      {subLink.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <button
-                              key={childIndex}
-                              onClick={() => handleNavigation(childLink.href)}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-left rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-800 mb-1"
-                            >
-                              <div className={`${getThemeColor()} bg-opacity-20 p-1.5 rounded-full`}>
-                                {childLink.icon}
-                              </div>
-                              {childLink.label}
-                            </button>
-                          )
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    key={index}
-                    onClick={() => handleNavigation(link.href)}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-base font-medium mb-2 ${link.label === 'Pathways' ? 'text-blue-400 font-bold bg-slate-700/60' : 'text-white hover:bg-slate-800'}`}
-                  >
-                    <div className={`${getThemeColor()} bg-opacity-30 p-2 rounded-full`}>
-                      {link.icon}
-                    </div>
-                    {link.label}
-                  </button>
-                )
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile luxury sidebar (left sheet) */}
+      <div className="md:hidden">
+        <ContentSidebarMobile
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          tree={contentTree || { rootItems: [], itemsById: {} }}
+          currentItemId={currentItemId}
+          onCreateItem={handleCreateItem}
+          onDeleteItem={handleDeleteItem}
+        />
+      </div>
     </>
   );
 }

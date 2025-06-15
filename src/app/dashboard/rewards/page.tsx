@@ -8,9 +8,13 @@ import LoyaltyRewards from '@/components/LoyaltyRewards';
 import { ThemeConfig as LoyaltyThemeConfig, ThemeLoyalty } from '@/lib/xpSystem';
 import { themeConfig } from '@/config/themeConfig';
 import { logUserActivity } from '@/utils/logUserActivity';
+import { ThemedHeader } from '@/components/ui/themed-header';
+import { useTheme } from '@/contexts/theme-context';
+import { ThemedAchievement } from '@/components/ui/themed-achievement';
 
 export default function RewardsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { theme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<LoyaltyThemeConfig | null>(null);
   const [currentLoyalty, setCurrentLoyalty] = useState<ThemeLoyalty>({
     loyaltyPoints: 0,
@@ -118,19 +122,64 @@ export default function RewardsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Loyalty & Rewards</h1>
-      <LoyaltyRewards
-        currentTheme={currentTheme || {
-          name: 'Default',
-          description: 'Default theme',
-          xpMultiplier: 1.0,
-          avatarLevels: []
-        }}
-        currentLoyalty={currentLoyalty}
-        onLoyaltyUpdate={handleLoyaltyUpdate}
-        onRewardRedeem={handleRewardRedeem}
-      />
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title="Loyalty & Rewards"
+          subtitle="Earn, unlock, and celebrate your achievements!"
+          className="mb-6 shadow-lg"
+        />
+      </div>
+
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        {/* Animated Achievements luxury card */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8">
+          <h2 className="text-2xl font-semibold mb-6">Achievements</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ThemedAchievement
+              theme={theme}
+              title="7-Day Streak"
+              description="Log in for 7 days in a row."
+              icon="🔥"
+              isUnlocked={currentLoyalty.streakDays >= 7}
+              progress={Math.min(100, (currentLoyalty.streakDays / 7) * 100)}
+            />
+            <ThemedAchievement
+              theme={theme}
+              title="100 Loyalty Points"
+              description="Earn 100 loyalty points."
+              icon="⭐"
+              isUnlocked={currentLoyalty.loyaltyPoints >= 100}
+              progress={Math.min(100, (currentLoyalty.loyaltyPoints / 100) * 100)}
+            />
+            <ThemedAchievement
+              theme={theme}
+              title="First Reward"
+              description="Redeem your first reward."
+              icon="🎁"
+              isUnlocked={currentLoyalty.stars > 0}
+              progress={currentLoyalty.stars > 0 ? 100 : 0}
+            />
+          </div>
+        </div>
+
+        {/* Loyalty & Rewards luxury card */}
+        <div className="luxury-card p-8 animate-fadeIn">
+          <LoyaltyRewards
+            currentTheme={currentTheme || {
+              name: 'Default',
+              description: 'Default theme',
+              xpMultiplier: 1.0,
+              avatarLevels: []
+            }}
+            currentLoyalty={currentLoyalty}
+            onLoyaltyUpdate={handleLoyaltyUpdate}
+            onRewardRedeem={handleRewardRedeem}
+          />
+        </div>
+      </div>
     </div>
   );
 } 

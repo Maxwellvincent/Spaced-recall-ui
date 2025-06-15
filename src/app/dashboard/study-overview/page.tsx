@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Loader2, BookOpen, Brain, Clock, Star, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/contexts/theme-context";
+import { ThemedHeader } from '@/components/ui/themed-header';
 
 interface StudyNode {
   id: string;
@@ -200,146 +201,152 @@ export default function StudyOverviewPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">{themeStyles.header}</h1>
-        <Link 
-          href="/dashboard"
-          className={`${themeStyles.accent} hover:text-white transition`}
-        >
-          Back to Dashboard
-        </Link>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title={themeStyles.header}
+          subtitle="Visualize your mastery and progress"
+          className="mb-6 shadow-lg"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Subjects List */}
-        <div className="lg:col-span-1">
-          <div className="bg-slate-900 p-6 rounded-lg shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 text-white">Subjects</h2>
-            <div className="space-y-3">
-              {subjectNodes.map(node => (
-                <button
-                  key={node.id}
-                  onClick={() => setSelectedSubject(node.id)}
-                  className={`w-full text-left p-4 rounded-lg transition ${
-                    selectedSubject === node.id 
-                      ? `${themeStyles.primary} text-white` 
-                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{node.label}</span>
-                    <span className="text-sm">Level {node.level}</span>
-                  </div>
-                  <div className="mt-2">
-                    <div className="w-full bg-slate-700 rounded-full h-2">
-                      <div 
-                        className={`${themeStyles.accent} bg-opacity-70 rounded-full h-2`}
-                        style={{ width: `${node.progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-xs">{node.concepts.length} concepts</span>
-                      <span className="text-xs">{node.progress}% mastered</span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        {/* XP Ring luxury widget */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8 flex items-center gap-6">
+          <div className="flex flex-col items-center justify-center">
+            <span className="text-4xl font-bold animate-spin-slow">🟢</span>
+            <span className="text-lg font-semibold mt-2">XP Ring</span>
+            <span className="text-2xl font-bold mt-1">{subjectNodes.reduce((acc, s) => acc + s.xp, 0)} XP</span>
+            <span className="text-xs text-slate-400">Total XP across all subjects</span>
           </div>
         </div>
 
-        {/* Subject Details */}
-        <div className="lg:col-span-2">
-          {selectedSubject ? (
-            <div className="space-y-6">
-              {/* Subject Overview */}
-              <div className="bg-slate-900 p-6 rounded-lg shadow-lg">
-                {(() => {
-                  const details = getSubjectDetails(selectedSubject);
-                  if (!details) return <p className="text-slate-300">Subject not found</p>;
-
-                  const { subject, stats } = details;
-                  return (
-                    <>
-                      <h2 className="text-2xl font-bold text-white mb-4">{subject.label}</h2>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-slate-800 p-4 rounded-lg">
-                          <div className="text-sm text-slate-400">Topics</div>
-                          <div className="text-xl text-white">{stats.completedTopics}/{stats.totalTopics}</div>
-                        </div>
-                        <div className="bg-slate-800 p-4 rounded-lg">
-                          <div className="text-sm text-slate-400">Concepts</div>
-                          <div className="text-xl text-white">{stats.completedConcepts}/{stats.totalConcepts}</div>
-                        </div>
-                        <div className="bg-slate-800 p-4 rounded-lg">
-                          <div className="text-sm text-slate-400">Level</div>
-                          <div className="text-xl text-white">{subject.level}</div>
-                        </div>
-                        <div className="bg-slate-800 p-4 rounded-lg">
-                          <div className="text-sm text-slate-400">XP</div>
-                          <div className="text-xl text-white">{subject.xp}</div>
-                        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Subjects List luxury card */}
+          <div className="lg:col-span-1">
+            <div className="luxury-card p-6 animate-fadeIn">
+              <h2 className="text-xl font-semibold mb-4 text-white">Subjects</h2>
+              <div className="space-y-3">
+                {subjectNodes.map(node => (
+                  <button
+                    key={node.id}
+                    onClick={() => setSelectedSubject(node.id)}
+                    className={`w-full text-left p-4 rounded-lg transition luxury-card border-2 ${selectedSubject === node.id ? 'border-blue-500' : 'border-transparent hover:border-blue-400'}`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{node.label}</span>
+                      <span className="text-sm">Level {node.level}</span>
+                    </div>
+                    <div className="mt-2">
+                      <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${themeStyles.accent}`}
+                          style={{ width: `${node.progress}%` }}
+                        />
                       </div>
-
-                      {/* Topics and Concepts */}
-                      <div>
-                        <h3 className="text-lg font-semibold mb-3 text-white">Concepts</h3>
-                        {subject.concepts.length > 0 ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {subject.concepts.map((concept, index) => (
-                              <div 
-                                key={`concept-${index}`}
-                                className="bg-slate-800 p-3 rounded-lg flex items-center justify-between"
-                              >
-                                <div className="flex items-center">
-                                  <div className={`${themeStyles.statBg} p-2 rounded-full mr-3`}>
-                                    <Brain className={`h-4 w-4 ${themeStyles.accent}`} />
-                                  </div>
-                                  <span className="text-slate-200">{concept}</span>
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-slate-500" />
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-slate-400">No concepts found for this subject.</p>
-                        )}
+                      <div className="flex justify-between mt-1">
+                        <span className="text-xs">{node.concepts.length} concepts</span>
+                        <span className="text-xs">{node.progress}% mastered</span>
                       </div>
-
-                      <div className="mt-6 flex justify-end">
-                        <Link 
-                          href={`/subjects/${subject.id}`}
-                          className={`${themeStyles.primary} text-white px-4 py-2 rounded-md flex items-center gap-2`}
-                        >
-                          View Subject
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      </div>
-                    </>
-                  );
-                })()}
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
-          ) : (
-            <div className="bg-slate-900 p-8 rounded-lg shadow-lg text-center">
-              <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-500" />
-              <h2 className="text-xl font-semibold mb-2 text-white">No Subject Selected</h2>
-              <p className="text-slate-400">
-                {subjectNodes.length > 0 
-                  ? "Select a subject from the list to view details" 
-                  : "You haven't created any subjects yet"}
-              </p>
-              {subjectNodes.length === 0 && (
-                <Link 
-                  href="/subjects/create"
-                  className={`${themeStyles.primary} text-white px-4 py-2 rounded-md inline-flex items-center gap-2 mt-4`}
-                >
-                  Create Your First Subject
-                </Link>
-              )}
-            </div>
-          )}
+          </div>
+
+          {/* Subject Details luxury card */}
+          <div className="lg:col-span-2">
+            {selectedSubject ? (
+              <div className="space-y-6">
+                {/* Subject Overview luxury card */}
+                <div className="luxury-card p-6 animate-fadeIn">
+                  {(() => {
+                    const details = getSubjectDetails(selectedSubject);
+                    if (!details) return <p className="text-slate-300">Subject not found</p>;
+
+                    const { subject, stats } = details;
+                    return (
+                      <>
+                        <h2 className="text-2xl font-bold text-white mb-4">{subject.label}</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                          <div className="luxury-card p-4">
+                            <div className="text-sm text-slate-400">Topics</div>
+                            <div className="text-xl text-white">{stats.completedTopics}/{stats.totalTopics}</div>
+                          </div>
+                          <div className="luxury-card p-4">
+                            <div className="text-sm text-slate-400">Concepts</div>
+                            <div className="text-xl text-white">{stats.completedConcepts}/{stats.totalConcepts}</div>
+                          </div>
+                          <div className="luxury-card p-4">
+                            <div className="text-sm text-slate-400">Level</div>
+                            <div className="text-xl text-white">{subject.level}</div>
+                          </div>
+                          <div className="luxury-card p-4">
+                            <div className="text-sm text-slate-400">XP</div>
+                            <div className="text-xl text-white">{subject.xp}</div>
+                          </div>
+                        </div>
+
+                        {/* Concepts luxury cards */}
+                        <div>
+                          <h3 className="text-lg font-semibold mb-3 text-white">Concepts</h3>
+                          {subject.concepts.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {subject.concepts.map((concept, index) => (
+                                <div
+                                  key={`concept-${index}`}
+                                  className="luxury-card p-3 flex items-center justify-between animate-fadeIn"
+                                >
+                                  <div className="flex items-center">
+                                    <span className="text-2xl mr-3">🧠</span>
+                                    <span className="text-slate-200">{concept}</span>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-slate-500" />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-slate-400">No concepts found for this subject.</p>
+                          )}
+                        </div>
+
+                        <div className="mt-6 flex justify-end">
+                          <Link
+                            href={`/subjects/${subject.id}`}
+                            className="luxury-card px-4 py-2 flex items-center gap-2 hover:shadow-lg transition-all"
+                          >
+                            View Subject
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="luxury-card p-8 text-center animate-fadeIn">
+                <BookOpen className="h-12 w-12 mx-auto mb-4 text-slate-500" />
+                <h2 className="text-xl font-semibold mb-2 text-white">No Subject Selected</h2>
+                <p className="text-slate-400">
+                  {subjectNodes.length > 0
+                    ? "Select a subject from the list to view details"
+                    : "You haven't created any subjects yet"}
+                </p>
+                {subjectNodes.length === 0 && (
+                  <Link
+                    href="/subjects/create"
+                    className="luxury-card px-4 py-2 inline-flex items-center gap-2 mt-4 hover:shadow-lg transition-all"
+                  >
+                    Create Your First Subject
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

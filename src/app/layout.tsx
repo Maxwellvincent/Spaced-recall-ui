@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -10,9 +10,6 @@ import Script from "next/script";
 // Force dynamic rendering for the entire application
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-// Load Inter font
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Spaced Recall",
@@ -25,14 +22,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
       <head>
         {/* Add bootstrap script to fix the error */}
         <Script id="bootstrap" strategy="beforeInteractive">
           {`window.__NEXT_DATA__ = window.__NEXT_DATA__ || {};`}
         </Script>
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className="font-sans" suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider>
             <StreakProvider>

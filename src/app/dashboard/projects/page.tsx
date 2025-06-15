@@ -6,7 +6,7 @@ import { getFirebaseDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/contexts/theme-context";
-import { Loader2, Plus, Calendar, Clock, BarChart, Trash, Edit, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Calendar, Clock, BarChart, Trash, Edit, ChevronDown, ChevronRight, CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { syncProjectToActivities, deleteProjectFromActivities } from "@/utils/syncProjectsToActivities";
 import { logUserActivity } from '@/utils/logUserActivity';
+import { ThemedHeader } from '@/components/ui/themed-header';
+import { ThemedAchievement } from '@/components/ui/themed-achievement';
 
 // Use getFirebaseDb() to ensure proper initialization
 const db = getFirebaseDb();
@@ -942,258 +944,130 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="min-h-screen text-white" suppressHydrationWarning>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">{themeStyles.header}</h1>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            className={`${themeStyles.primary} flex items-center`}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
-        </div>
-        
-        <div className="mb-6 flex justify-between items-center">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1 rounded-md ${filter === 'all' ? themeStyles.primary : 'bg-slate-700'}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('active')}
-              className={`px-3 py-1 rounded-md ${filter === 'active' ? themeStyles.primary : 'bg-slate-700'}`}
-            >
-              Active
-            </button>
-            <button
-              onClick={() => setFilter('completed')}
-              className={`px-3 py-1 rounded-md ${filter === 'completed' ? themeStyles.primary : 'bg-slate-700'}`}
-            >
-              Completed
-            </button>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+      {/* Luxury Top Bar */}
+      <div className="px-4 pt-8 pb-4">
+        <ThemedHeader
+          theme={theme}
+          title={themeStyles.header}
+          subtitle="Track your learning projects"
+          className="mb-6 shadow-lg"
+        />
+      </div>
+
+      <div className="flex-1 w-full max-w-6xl mx-auto px-4 pb-8 flex flex-col gap-8">
+        {/* Project Milestones luxury widget */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8">
+          <h2 className="text-2xl font-semibold mb-6">Project Milestones</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ThemedAchievement
+              theme={theme}
+              title="First Project"
+              description="Create your first project."
+              icon="🚀"
+              isUnlocked={projects.length > 0}
+              progress={projects.length > 0 ? 100 : 0}
+            />
+            <ThemedAchievement
+              theme={theme}
+              title="Project Completed"
+              description="Complete a project."
+              icon="🏆"
+              isUnlocked={projects.some(p => p.status === 'completed')}
+              progress={projects.some(p => p.status === 'completed') ? 100 : 0}
+            />
+            <ThemedAchievement
+              theme={theme}
+              title="10 Tasks Logged"
+              description="Log 10 tasks across all projects."
+              icon="📝"
+              isUnlocked={projects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0) >= 10}
+              progress={Math.min(100, (projects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0) / 10) * 100)}
+            />
           </div>
         </div>
-        
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className={`h-8 w-8 animate-spin ${themeStyles.accent}`} />
+
+        {/* Quick Add Project luxury card */}
+        <div className="luxury-card p-8 animate-fadeIn mb-8">
+          <h2 className="text-xl font-semibold mb-4">Add New Project</h2>
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <Input
+              type="text"
+              placeholder="Project name"
+              value={newProject.name}
+              onChange={e => setNewProject({ ...newProject, name: e.target.value })}
+              className="rounded-lg shadow w-full md:w-1/3"
+            />
+            <Input
+              type="text"
+              placeholder="Description"
+              value={newProject.description}
+              onChange={e => setNewProject({ ...newProject, description: e.target.value })}
+              className="rounded-lg shadow w-full md:w-1/2"
+            />
+            <Button
+              onClick={handleAddProject}
+              className="rounded-lg shadow bg-blue-600 hover:bg-blue-700 transition-all px-6 py-3 text-lg font-semibold"
+              disabled={!newProject.name.trim()}
+            >
+              <Plus className="h-5 w-5 mr-2" /> Add Project
+            </Button>
           </div>
-        ) : filteredProjects.length > 0 ? (
-          <div className="space-y-4">
-            {filteredProjects.map(project => (
-              <div
-                key={project.id}
-                className={`${themeStyles.cardBg} rounded-lg shadow-lg ${themeStyles.border} overflow-hidden`}
-              >
-                <div 
-                  className={`p-4 flex justify-between items-start cursor-pointer`}
-                  onClick={() => toggleProjectExpanded(project.id)}
-                >
-                  <div className="flex items-start space-x-3 flex-grow">
-                    <div className="mt-1">
-                      {expandedProjects[project.id] ? (
-                        <ChevronDown className="h-5 w-5 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="flex-grow">
-                      <div className="flex items-center">
-                        <h3 className={`font-medium ${themeStyles.textPrimary}`}>
-                          {project.name}
-                        </h3>
-                        <span className={`ml-3 px-2 py-0.5 text-xs rounded-full ${getStatusColor(project.status)} text-white`}>
-                          {project.status.replace('-', ' ')}
-                        </span>
-                      </div>
-                      <p className={`text-sm mt-1 ${themeStyles.textMuted}`}>
-                        {project.description || "No description provided"}
-                      </p>
-                      <div className="flex items-center mt-2 text-xs text-slate-400">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        <span>Created {format(new Date(project.createdAt), 'MMM d, yyyy')}</span>
-                        <div className="ml-4 flex items-center">
-                          <BarChart className="h-3 w-3 mr-1" />
-                          <span>Progress: {project.progress}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Edit project functionality would go here
-                        toast.info("Edit project functionality coming soon");
-                      }}
-                      className="p-2 text-slate-400 hover:text-blue-400 transition"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProject(project.id);
-                      }}
-                      className="p-2 text-slate-400 hover:text-red-400 transition"
-                    >
-                      <Trash className="h-4 w-4" />
-                    </button>
-                  </div>
+        </div>
+
+        {/* Projects List luxury cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {projects.length === 0 ? (
+            <div className="luxury-card p-8 text-center text-slate-400 animate-fadeIn">No projects yet. Start by adding one above!</div>
+          ) : (
+            projects.map(project => (
+              <div key={project.id} className="luxury-card p-6 animate-fadeIn flex flex-col gap-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <BarChart className="w-6 h-6" /> {project.name}
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(project.status)}`}>{project.status.replace('-', ' ')}</span>
                 </div>
-                
-                {expandedProjects[project.id] && (
-                  <div className={`p-4 border-t ${themeStyles.border} bg-slate-900/50`}>
-                    <div className="mb-4">
-                      <h4 className={`text-sm font-medium mb-2 ${themeStyles.textSecondary}`}>Status</h4>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'planning')}
-                          className={`px-3 py-1 text-xs rounded-md ${project.status === 'planning' ? 'bg-blue-600' : 'bg-slate-700'}`}
-                        >
-                          Planning
-                        </button>
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'in-progress')}
-                          className={`px-3 py-1 text-xs rounded-md ${project.status === 'in-progress' ? 'bg-yellow-600' : 'bg-slate-700'}`}
-                        >
-                          In Progress
-                        </button>
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'on-hold')}
-                          className={`px-3 py-1 text-xs rounded-md ${project.status === 'on-hold' ? 'bg-red-600' : 'bg-slate-700'}`}
-                        >
-                          On Hold
-                        </button>
-                        <button
-                          onClick={() => handleUpdateProjectStatus(project.id, 'completed')}
-                          className={`px-3 py-1 text-xs rounded-md ${project.status === 'completed' ? 'bg-green-600' : 'bg-slate-700'}`}
-                        >
-                          Completed
-                        </button>
-                      </div>
+                <p className="text-slate-400 mb-2">{project.description}</p>
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex-1">
+                    <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${themeStyles.progressBar}`}
+                        style={{ width: `${project.progress || 0}%` }}
+                      />
                     </div>
-                    
-                    <div className="mb-4">
-                      <h4 className={`text-sm font-medium mb-2 ${themeStyles.textSecondary}`}>Progress</h4>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div 
-                          className={`${themeStyles.progressBar} rounded-full h-2 transition-all duration-500`}
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className={`text-sm font-medium mb-2 ${themeStyles.textSecondary}`}>Tasks</h4>
-                      {project.tasks && project.tasks.length > 0 ? (
-                        <div className="space-y-2">
-                          {project.tasks.map(task => (
-                            <div key={task.id} className="flex items-center justify-between bg-slate-800 p-2 rounded-md">
-                              <div className="flex items-center">
-                                <button
-                                  onClick={() => handleToggleTaskComplete(project.id, task.id)}
-                                  className={`w-4 h-4 rounded-full mr-2 cursor-pointer ${
-                                    task.completed ? 'bg-green-500' : 'bg-slate-500 hover:bg-slate-400'
-                                  }`}
-                                  aria-label={task.completed ? "Mark as incomplete" : "Mark as complete"}
-                                />
-                                <span className={task.completed ? 'line-through text-slate-400' : ''}>{task.title}</span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                {task.loggedTime && (
-                                  <div className="text-xs text-slate-400 flex items-center mr-2">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {task.loggedTime} min
-                                  </div>
-                                )}
-                                {task.dueDate && (
-                                  <div className="text-xs text-slate-400 flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    {format(new Date(task.dueDate), 'MMM d')}
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    setCurrentProjectId(project.id);
-                                    setCurrentTaskId(task.id);
-                                    setLoggedTime("");
-                                    setXpEarned(0);
-                                    setIsLogTimeDialogOpen(true);
-                                  }}
-                                  className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded-md ml-2"
-                                >
-                                  Log Time
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingTask({
-                                      projectId: project.id,
-                                      taskId: task.id,
-                                      title: task.title,
-                                      dueDate: task.dueDate || "",
-                                      estimatedTime: task.estimatedTime ? task.estimatedTime.toString() : ""
-                                    });
-                                    setIsEditTaskDialogOpen(true);
-                                  }}
-                                  className="text-xs p-1 text-slate-400 hover:text-blue-400 transition"
-                                  aria-label="Edit task"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteTask(project.id, task.id)}
-                                  className="text-xs p-1 text-slate-400 hover:text-red-400 transition"
-                                  aria-label="Delete task"
-                                >
-                                  <Trash className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-400">No tasks added yet.</p>
-                      )}
-                      <Button
-                        onClick={() => {
-                          setCurrentProjectId(project.id);
-                          setIsAddTaskDialogOpen(true);
-                        }}
-                        className="mt-3 text-sm h-8 bg-slate-700 hover:bg-slate-600"
-                        size="sm"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add Task
-                      </Button>
-                    </div>
+                    <span className="text-xs text-slate-400 mt-1 block">Progress: {project.progress || 0}%</span>
+                  </div>
+                  <Button size="sm" variant="outline" className="rounded-lg shadow hover:shadow-lg transition-all" onClick={() => router.push(`/projects/${project.id}`)}>
+                    <Edit className="h-4 w-4 mr-1" /> View
+                  </Button>
+                  <Button size="sm" variant="destructive" className="rounded-lg shadow hover:shadow-lg transition-all" onClick={() => handleDeleteProject(project.id)}>
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+                {/* Tasks List luxury sub-card */}
+                {project.tasks && project.tasks.length > 0 && (
+                  <div className="mt-2">
+                    <h4 className="text-lg font-semibold mb-2">Tasks</h4>
+                    <ul className="space-y-2">
+                      {project.tasks.map(task => (
+                        <li key={task.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-800/60 hover:bg-slate-700/80 transition-all">
+                          <span className={`w-3 h-3 rounded-full ${task.completed ? 'bg-green-500' : 'bg-slate-500'} inline-block`} />
+                          <span className={`flex-1 ${task.completed ? 'line-through text-slate-400' : 'text-slate-100'}`}>{task.title}</span>
+                          {task.dueDate && <span className="text-xs text-slate-400">Due: {format(new Date(task.dueDate), 'MMM d')}</span>}
+                          <Button size="sm" variant="outline" className="rounded-lg shadow hover:shadow-lg transition-all" onClick={() => handleToggleTaskComplete(project.id, task.id)}>
+                            {task.completed ? <CheckIcon className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className={`${themeStyles.cardBg} p-8 rounded-lg text-center ${themeStyles.border}`}>
-            <p className={themeStyles.textMuted}>
-              {filter === 'all' 
-                ? "You don't have any projects yet." 
-                : filter === 'active' 
-                  ? "You don't have any active projects." 
-                  : "You don't have any completed projects."}
-            </p>
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className={`${themeStyles.primary} mt-4`}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Project
-            </Button>
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {isClient && (
