@@ -10,6 +10,7 @@ import { ThemeDebug } from "@/components/ThemeDebug";
 import { LoginNotification } from "@/components/LoginNotification";
 import { StreakDebug } from "@/components/StreakDebug";
 import Link from "next/link";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 export default function DashboardLayout({
   children,

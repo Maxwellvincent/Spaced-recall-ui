@@ -2,7 +2,7 @@ import { db } from './firebase';
 if (typeof window !== "undefined") {
   console.log("Firestore project ID (client):", db.app.options.projectId);
 }
-import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import type { Domain } from '@/types/domain';
 import type { Subject } from '@/types/subject';
 import type { Topic } from '@/types/topic';
@@ -50,4 +50,12 @@ export async function joinPathway(userId: string, pathwayId: string) {
 export async function getUserPathways(userId: string): Promise<UserPathway[]> {
   const snap = await getDocs(collection(db, 'users', userId, 'userPathways'));
   return snap.docs.map(doc => ({ ...doc.data(), pathwayId: doc.id } as UserPathway));
+}
+
+// Add subject to pathway
+export async function addSubjectToPathway(pathwayId: string, subjectId: string) {
+  const ref = doc(db, 'pathways', pathwayId);
+  await updateDoc(ref, {
+    subjectIds: arrayUnion(subjectId),
+  });
 } 

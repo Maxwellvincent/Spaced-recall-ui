@@ -48,7 +48,7 @@ export default function CreateSubjectPage() {
 
       const data = await response.json();
       toast.success("Subject created successfully!");
-      router.push(`/subjects/${data.id}`);
+      router.push(`/dashboard/subjects/${data.id}`);
     } catch (error) {
       console.error("Error saving subject:", error);
       toast.error("Failed to save subject");

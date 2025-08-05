@@ -203,7 +203,7 @@ export default function SubjectsPage() {
             <p className="text-slate-400">Manage and track your learning journey</p>
           </div>
           <Button
-            onClick={() => router.push('/subjects/create')}
+            onClick={() => router.push('/dashboard/subjects/create')}
             className={`mt-4 md:mt-0 ${themeStyles.primary} text-white flex items-center gap-2`}
           >
             <Plus className="h-4 w-4" />
@@ -279,7 +279,7 @@ export default function SubjectsPage() {
             </p>
             {subjects.length === 0 && (
               <Button
-                onClick={() => router.push('/subjects/create')}
+                onClick={() => router.push('/dashboard/subjects/create')}
                 className={`${themeStyles.primary} text-white`}
               >
                 Create Your First Subject
@@ -292,7 +292,7 @@ export default function SubjectsPage() {
               <SubjectCard 
                 key={subject.id} 
                 subject={subject} 
-                onClick={() => router.push(`/subjects/${subject.id}`)}
+                onClick={() => router.push(`/dashboard/subjects/${subject.id}`)}
                 theme={theme}
               />
             ))}

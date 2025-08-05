@@ -242,7 +242,7 @@ export function SubjectCard({ subject, theme = "classic", onClick, className }: 
 
   return (
     <Link
-      href={`/subjects/${encodeURIComponent(subject.id)}`}
+      href={`/dashboard/subjects/${encodeURIComponent(subject.id)}`}
       className={cn("block group", className)}
       onClick={onClick}
     >

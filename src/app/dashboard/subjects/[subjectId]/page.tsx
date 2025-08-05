@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getFirebaseDb } from '@/lib/firebase';
-import { doc, getDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, updateDoc, collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 import Link from "next/link";
 import type { Subject } from "@/types/study";
 import { useAuth } from "@/lib/auth";
@@ -13,7 +13,6 @@ import { Loader2 } from "lucide-react";
 import { Plus } from "lucide-react";
 import { Download } from "lucide-react";
 import { FileText } from "lucide-react";
-import { Sync } from "lucide-react";
 import { Trash } from "lucide-react";
 import { Settings } from "lucide-react";
 import { Pencil } from "lucide-react";
@@ -49,6 +48,10 @@ import { getDbzPowerLevel, getDbzMilestone } from '@/lib/dbzPowerLevel';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getProgressBarGradientClass } from '@/lib/utils/progressBarGradient';
 import { PracticeQuizSection } from '@/components/PracticeQuizSection';
+import { Line } from 'react-chartjs-2';
+import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 // Custom Sync icon as fallback
 const CustomSyncIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -77,10 +80,35 @@ const db = getFirebaseDb();
 interface ExtendedSubject extends Subject {
   id: string;
   userId: string;
+  purpose?: string;
 }
 
 interface PageProps {
   params: { subjectId: string };
+}
+
+// Type for MCAT score history
+type MCATScore = {
+  id: string;
+  CPBS?: number;
+  CARS?: number;
+  BBLS?: number;
+  PSBB?: number;
+  total?: number;
+  source?: string;
+  type?: string;
+  timestamp?: string;
+};
+
+interface ScoreForm {
+  CPBS: string;
+  CARS: string;
+  BBLS: string;
+  PSBB: string;
+  total: string;
+  source: string;
+  type: string;
+  [key: string]: string;
 }
 
 export default function SubjectDetailsPage({ params }: PageProps) {
@@ -105,7 +133,18 @@ export default function SubjectDetailsPage({ params }: PageProps) {
   const [editedDescription, setEditedDescription] = useState("");
   const [editedStudyStyle, setEditedStudyStyle] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [showExamFeatures, setShowExamFeatures] = useState<boolean>(true);
+  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
+  const [scoreForm, setScoreForm] = useState<ScoreForm>({
+    CPBS: '',
+    CARS: '',
+    BBLS: '',
+    PSBB: '',
+    total: '',
+    source: '',
+    type: 'full-length',
+  });
+  const [scoreLoading, setScoreLoading] = useState(false);
+  const [scoreHistory, setScoreHistory] = useState<MCATScore[]>([]);
   
   // Get theme information
   const { theme } = useTheme();
@@ -262,6 +301,19 @@ export default function SubjectDetailsPage({ params }: PageProps) {
     fetchSubject();
   }, [user, loading, subjectId, router]);
 
+  // Fetch MCAT score history if subject is MCAT
+  useEffect(() => {
+    if (subject && (subject.name?.toLowerCase() === 'mcat' || subject.id === 'cdvFdHpvHOha7SZuOCLS') && user) {
+      const fetchScores = async () => {
+        const scoresRef = collection(db, 'users', user.uid, 'mcatScores');
+        const q = query(scoresRef, orderBy('timestamp', 'asc'));
+        const snap = await getDocs(q);
+        setScoreHistory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      };
+      fetchScores();
+    }
+  }, [subject, user]);
+
   // Add a function to handle exporting to Obsidian
   const handleExportToObsidian = async () => {
     try {
@@ -347,7 +399,6 @@ export default function SubjectDetailsPage({ params }: PageProps) {
 
     try {
       const syncOptions: NotionSyncOptions = {
-        subjectId: subject.id,
         direction: syncDirection,
         conflictResolution,
         includeProgress,
@@ -397,7 +448,6 @@ export default function SubjectDetailsPage({ params }: PageProps) {
 
     try {
       const syncOptions: ObsidianSyncOptions = {
-        subjectId: subject.id,
         direction: syncDirection,
         conflictResolution,
         includeProgress,
@@ -514,16 +564,14 @@ export default function SubjectDetailsPage({ params }: PageProps) {
         name: editedName,
         description: editedDescription,
         studyStyle: editedStudyStyle,
-        showExamFeatures: showExamFeatures,
         updatedAt: new Date().toISOString()
       });
-      setSubject({
-        ...subject,
+      setSubject(s => s ? {
+        ...s,
         name: editedName,
         description: editedDescription,
-        studyStyle: editedStudyStyle,
-        showExamFeatures: showExamFeatures
-      });
+        studyStyle: editedStudyStyle
+      } : s);
       toast.success('Subject updated successfully');
       setEditDialogOpen(false);
     } catch (error) {
@@ -537,14 +585,10 @@ export default function SubjectDetailsPage({ params }: PageProps) {
   // Add a function to set up the edit dialog with current values
   const setupEditDialog = () => {
     if (!subject) return;
+    console.log('[DEBUG] setupEditDialog called');
     setEditedName(subject.name);
     setEditedDescription(subject.description || "");
     setEditedStudyStyle(subject.studyStyle || "");
-    setShowExamFeatures(
-      typeof subject.showExamFeatures === 'boolean'
-        ? subject.showExamFeatures
-        : (subject.studyStyle === 'skill' ? false : true)
-    );
     setEditDialogOpen(true);
   };
 
@@ -552,6 +596,59 @@ export default function SubjectDetailsPage({ params }: PageProps) {
   const handleTopicClick = (topicName: string) => {
     console.log('Navigating to topic:', topicName);
     router.push(`/subjects/${subject.id}/topics/${encodeURIComponent(topicName)}`);
+  };
+
+  // MCAT Section Definitions
+  const MCAT_SECTIONS = [
+    { id: 'CPBS', name: 'Chemical and Physical Foundations of Biological Systems', description: 'Tests chemistry, physics, and biochemistry as they relate to living systems.' },
+    { id: 'CARS', name: 'Critical Analysis and Reasoning Skills', description: 'Assesses reading comprehension, analysis, and reasoning skills using passages from a variety of disciplines.' },
+    { id: 'BBLS', name: 'Biological and Biochemical Foundations of Living Systems', description: 'Focuses on biology and biochemistry, as well as organic and inorganic chemistry concepts.' },
+    { id: 'PSBB', name: 'Psychological, Social, and Biological Foundations of Behavior', description: 'Tests understanding of psychology, sociology, and biological foundations of behavior.' },
+  ];
+
+  // Score input handler
+  const handleScoreInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setScoreForm(f => ({ ...f, [name]: value }));
+  };
+  const handleScoreType = (val: string) => setScoreForm(f => ({ ...f, type: val }));
+
+  // Score submit handler
+  const handleScoreSubmit = async () => {
+    setScoreLoading(true);
+    try {
+      const { CPBS, CARS, BBLS, PSBB, source, type } = scoreForm;
+      // Only require at least one section
+      if (!CPBS && !CARS && !BBLS && !PSBB) {
+        toast.error('Enter at least one section score');
+        setScoreLoading(false);
+        return;
+      }
+      const total = [CPBS, CARS, BBLS, PSBB].map(Number).filter(Boolean).reduce((a, b) => a + b, 0);
+      const entry = {
+        timestamp: new Date().toISOString(),
+        CPBS: CPBS ? Number(CPBS) : null,
+        CARS: CARS ? Number(CARS) : null,
+        BBLS: BBLS ? Number(BBLS) : null,
+        PSBB: PSBB ? Number(PSBB) : null,
+        total: total || null,
+        source: source || '',
+        type: type || 'full-length',
+      };
+      await addDoc(collection(db, 'users', user.uid, 'mcatScores'), entry);
+      toast.success('Score added!');
+      setScoreDialogOpen(false);
+      setScoreForm({ CPBS: '', CARS: '', BBLS: '', PSBB: '', total: '', source: '', type: 'full-length' });
+      // Refresh history
+      const scoresRef = collection(db, 'users', user.uid, 'mcatScores');
+      const q = query(scoresRef, orderBy('timestamp', 'asc'));
+      const snap = await getDocs(q);
+      setScoreHistory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (e) {
+      toast.error('Failed to add score');
+    } finally {
+      setScoreLoading(false);
+    }
   };
 
   if (loading) {
@@ -600,14 +697,17 @@ export default function SubjectDetailsPage({ params }: PageProps) {
     );
   }
 
-  if (subject.studyStyle === 'exam' || subject.studyStyle === 'study') {
-  return (
+  // Debug: Log the subject object to help diagnose MCAT section rendering
+  console.log('Loaded subject:', subject);
+
+  if (subject && (subject.studyStyle === 'exam' || subject.studyStyle === 'study')) {
+    return (
       <div className="min-h-screen">
         <div className="container mx-auto px-4 py-8 max-w-5xl">
           {/* Header Section */}
           <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 ${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
             <div className="flex items-start justify-between w-full">
-          <div>
+              <div>
                 <h1 className="text-3xl font-bold mb-2">{subject.name}</h1>
                 {subject.studyStyle === 'exam' && (
                   <span className={`inline-block mb-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${themeStyles.accent}`} style={{ background: 'rgba(59,130,246,0.15)' }}>
@@ -621,22 +721,22 @@ export default function SubjectDetailsPage({ params }: PageProps) {
                 )}
                 <p className={themeStyles.textSecondary}>{subject.description}</p>
                 {subject.purpose && <p className="mt-2 text-sm text-slate-400 italic">Purpose: {subject.purpose}</p>}
-          </div>
-            <button
-                  onClick={setupEditDialog}
+              </div>
+              <button
+                onClick={setupEditDialog}
                 aria-label="Edit Subject Settings"
                 className="ml-4 p-2 rounded-full hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 title="Edit Subject Settings"
               >
                 <Settings className="w-6 h-6 text-slate-400 hover:text-blue-400" />
               </button>
-                  </div>
+            </div>
             <div className="flex flex-col gap-2 md:items-end">
               <div className="flex items-center gap-4">
                 <div className="flex items-center">
                   <span className={themeStyles.textSecondary}>Mastery:</span>
                   <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{subject.progress?.averageMastery || 0}%</span>
-                  </div>
+                </div>
                 <div className="flex items-center">
                   <span className={themeStyles.textSecondary}>XP:</span>
                   <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{subject.progress?.totalXP || 0}</span>
@@ -656,10 +756,125 @@ export default function SubjectDetailsPage({ params }: PageProps) {
                   <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow">
                     {subject.progress?.averageMastery || 0}%
                   </span>
-                      </div>
-                    </div>
+                </div>
+              </div>
             </div>
           </div>
+          {/* MCAT Section: Render only Add Section Score button and Score History, no big card */}
+          {((subject.name && subject.name.toLowerCase().includes('mcat')) ||
+            (subject.id && ['cdvFdHpvHOha7SZuOCLS'].includes(subject.id))) && (
+            <div className="mb-8">
+              <div className="flex items-center gap-4 mb-4">
+                <Button onClick={() => setScoreDialogOpen(true)} size="sm">Add Section Score</Button>
+              </div>
+              {/* Score History Chart with tooltips on legend */}
+              {scoreHistory.length > 0 && (
+                <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border} mb-4`}>
+                  <h3 className="text-xl font-semibold mb-2">Score History</h3>
+                  <Line
+                    data={{
+                      labels: scoreHistory.map(s => s && s.timestamp ? new Date(s.timestamp as string).toLocaleDateString() : ''),
+                      datasets: [
+                        { label: 'CPBS', data: scoreHistory.map(s => s.CPBS), borderColor: '#f59e42', backgroundColor: 'rgba(245,158,66,0.2)' },
+                        { label: 'CARS', data: scoreHistory.map(s => s.CARS), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.2)' },
+                        { label: 'BBLS', data: scoreHistory.map(s => s.BBLS), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)' },
+                        { label: 'PSBB', data: scoreHistory.map(s => s.PSBB), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.2)' },
+                        { label: 'Total', data: scoreHistory.map(s => s.total), borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.2)', borderDash: [5,5] },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                          labels: {
+                            generateLabels: chart => {
+                              const sectionMap = MCAT_SECTIONS.reduce((acc, sec) => {
+                                acc[sec.id] = sec;
+                                return acc;
+                              }, {} as Record<string, typeof MCAT_SECTIONS[number]>);
+                              return chart.data.datasets.map((dataset, i) => {
+                                return {
+                                  text: dataset.label ? String(dataset.label) : '',
+                                  fillStyle: typeof dataset.borderColor === 'string' ? dataset.borderColor : '#888',
+                                  strokeStyle: typeof dataset.borderColor === 'string' ? dataset.borderColor : '#888',
+                                  hidden: !chart.isDatasetVisible(i),
+                                  lineCap: 'butt',
+                                  lineDash: (dataset as any)?.borderDash || [],
+                                  lineDashOffset: 0,
+                                  lineJoin: 'miter',
+                                  lineWidth: 2,
+                                  pointStyle: 'line',
+                                  datasetIndex: i,
+                                };
+                              }) as import('chart.js').LegendItem[];
+                            },
+                          },
+                          // Custom: show tooltip on hover (handled below)
+                        },
+                        // Custom plugin to show shadcn/ui Tooltip on legend hover
+                        tooltip: {
+                          enabled: true,
+                          callbacks: {
+                            label: function(context) {
+                              const label = context.dataset.label || '';
+                              const sec = MCAT_SECTIONS.find(s => s.id === label);
+                              return sec ? `${label}: ${sec.name} — ${sec.description}` : label;
+                            }
+                          }
+                        }
+                      },
+                      scales: { y: { min: 110, max: 135 } },
+                    }}
+                    height={120}
+                  />
+                </div>
+              )}
+              {/* Score Input Dialog (unchanged) */}
+              <Dialog open={scoreDialogOpen} onOpenChange={setScoreDialogOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add MCAT Section Score</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Label>Test/Source Name</Label>
+                    <Input name="source" value={scoreForm.source} onChange={handleScoreInput} placeholder="e.g. AAMC FL1, Kaplan FL2, Section Bank, Custom" />
+                    <Label>Type</Label>
+                    <Select value={scoreForm.type} onValueChange={handleScoreType}>
+                      <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full-length">Full-length</SelectItem>
+                        <SelectItem value="section">Section</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      {MCAT_SECTIONS.map(sec => (
+                        <div key={sec.id}>
+                          <Label>{sec.id}</Label>
+                          <Input
+                            name={sec.id}
+                            type="number"
+                            min={118}
+                            max={132}
+                            value={scoreForm[sec.id as keyof ScoreForm]}
+                            onChange={handleScoreInput}
+                            placeholder="---"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleScoreSubmit} disabled={scoreLoading} size="sm">Save</Button>
+                    <DialogClose asChild>
+                      <Button variant="outline" size="sm">Cancel</Button>
+                    </DialogClose>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
           {/* Tabs Section */}
           <Tabs defaultValue="overview" className="w-full">
             <TabsList>
@@ -689,10 +904,10 @@ export default function SubjectDetailsPage({ params }: PageProps) {
               {/* Topics/concepts relational database table */}
               <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border} mt-4`}>
                 <h2 className="text-xl font-semibold mb-4">Topics & Concepts</h2>
-                <AddTopicButton themeStyles={themeStyles} onAdd={(topic) => setSubject(s => ({
+                <AddTopicButton themeStyles={themeStyles} onAdd={(topic: any) => setSubject(s => s ? {
                   ...s,
-                  topics: [...(s?.topics || []), topic]
-                }))} subjectId={subject.id} db={db} fetchSubject={fetchSubject} />
+                  topics: [...(s.topics || []), topic]
+                } : s)} subjectId={subject.id} db={db} fetchSubject={fetchSubject} />
                 <RelationalTopicsTable topics={subject.topics || []} subjectId={subject.id} themeStyles={themeStyles} router={router} db={db} fetchSubject={fetchSubject} />
               </div>
             </TabsContent>
@@ -704,14 +919,205 @@ export default function SubjectDetailsPage({ params }: PageProps) {
               </div>
             </TabsContent>
           </Tabs>
+          {/* Settings Dialog (must be present for modal to open) */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Subject</DialogTitle>
+                <DialogDescription>Update subject details below.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Label htmlFor="subjectName">Name</Label>
+                <Input id="subjectName" value={editedName} onChange={e => setEditedName(e.target.value)} />
+                <Label htmlFor="subjectDescription">Description</Label>
+                <Input id="subjectDescription" value={editedDescription} onChange={e => setEditedDescription(e.target.value)} />
+                <Label htmlFor="studyStyle">Study Style</Label>
+                <Select value={editedStudyStyle} onValueChange={setEditedStudyStyle}>
+                  <SelectTrigger id="studyStyle">
+                    <SelectValue placeholder="Select study style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="skill">Skill-based</SelectItem>
+                    <SelectItem value="exam">Exam-based</SelectItem>
+                    <SelectItem value="study">Study-based</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 mt-4">
+                  <Switch id="showExamFeatures" checked={subject.showExamFeatures} onCheckedChange={setSubject} />
+                  <Label htmlFor="showExamFeatures">Show Exam/Quiz/Review Features</Label>
+                </div>
+                {(editedStudyStyle === 'exam' || editedStudyStyle === 'study') && (
+                  <div className="mt-4">
+                    <ExamModeSettings subject={subject} onUpdate={fetchSubject} compact={true} />
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="flex flex-row gap-2">
+                <Button onClick={handleEditSubject} disabled={isEditing} size="sm">Save</Button>
+                <ArchiveDeleteButtons
+                  subjectId={subject.id}
+                  archived={subject.archived}
+                  onArchive={async () => {
+                    try {
+                      await updateDoc(doc(db, 'subjects', subject.id), { archived: true, updatedAt: new Date().toISOString() });
+                      toast.success('Subject archived');
+                      setEditDialogOpen(false);
+                      fetchSubject();
+                    } catch (e) {
+                      toast.error('Failed to archive subject');
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!window.confirm('Are you sure you want to permanently delete this subject? This cannot be undone.')) return;
+                    setDeleteLoading(true);
+                    try {
+                      await deleteDoc(doc(db, 'subjects', subject.id));
+                      toast.success('Subject deleted');
+                      setEditDialogOpen(false);
+                      router.push('/dashboard/subjects');
+                    } catch (e) {
+                      toast.error('Failed to delete subject');
+                    } finally {
+                      setDeleteLoading(false);
+                    }
+                  }}
+                  loading={deleteLoading}
+                />
+                <DialogClose asChild>
+                  <Button variant="outline" size="sm">Cancel</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     );
   }
 
-  const shouldShowExamFeatures = (subject.studyStyle === 'skill')
-    ? (typeof subject.showExamFeatures === 'boolean' ? subject.showExamFeatures : false)
-    : (typeof subject.showExamFeatures === 'boolean' ? subject.showExamFeatures : true);
+  // Fix: Guard against subject being undefined
+  const shouldShowExamFeatures = subject
+    ? (subject.studyStyle === 'skill'
+        ? (typeof subject.showExamFeatures === 'boolean' ? subject.showExamFeatures : false)
+        : (typeof subject.showExamFeatures === 'boolean' ? subject.showExamFeatures : true)
+      )
+    : false;
+
+  // In the main render, after the header and before tabs, show MCAT section info and score input if MCAT
+  {subject &&
+    ((subject.name && subject.name.toLowerCase().includes('mcat')) ||
+    (subject.id && ['cdvFdHpvHOha7SZuOCLS'].includes(subject.id))) && (
+    <div className="mb-8">
+      <div className="flex items-center gap-4 mb-4">
+        <Button onClick={() => setScoreDialogOpen(true)} size="sm">Add Section Score</Button>
+      </div>
+      {/* Score History Chart with tooltips on legend */}
+      {scoreHistory.length > 0 && (
+        <div className={`${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border} mb-4`}>
+          <h3 className="text-xl font-semibold mb-2">Score History</h3>
+          <Line
+            data={{
+              labels: scoreHistory.map(s => s && s.timestamp ? new Date(s.timestamp as string).toLocaleDateString() : ''),
+              datasets: [
+                { label: 'CPBS', data: scoreHistory.map(s => s.CPBS), borderColor: '#f59e42', backgroundColor: 'rgba(245,158,66,0.2)' },
+                { label: 'CARS', data: scoreHistory.map(s => s.CARS), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.2)' },
+                { label: 'BBLS', data: scoreHistory.map(s => s.BBLS), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)' },
+                { label: 'PSBB', data: scoreHistory.map(s => s.PSBB), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.2)' },
+                { label: 'Total', data: scoreHistory.map(s => s.total), borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.2)', borderDash: [5,5] },
+              ],
+            }}
+            options={{
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    generateLabels: chart => {
+                      const sectionMap = MCAT_SECTIONS.reduce((acc, sec) => {
+                        acc[sec.id] = sec;
+                        return acc;
+                      }, {} as Record<string, typeof MCAT_SECTIONS[number]>);
+                      return chart.data.datasets.map((dataset, i) => {
+                        return {
+                          text: dataset.label ? String(dataset.label) : '',
+                          fillStyle: typeof dataset.borderColor === 'string' ? dataset.borderColor : '#888',
+                          strokeStyle: typeof dataset.borderColor === 'string' ? dataset.borderColor : '#888',
+                          hidden: !chart.isDatasetVisible(i),
+                          lineCap: 'butt',
+                          lineDash: (dataset as any)?.borderDash || [],
+                          lineDashOffset: 0,
+                          lineJoin: 'miter',
+                          lineWidth: 2,
+                          pointStyle: 'line',
+                          datasetIndex: i,
+                        };
+                      }) as import('chart.js').LegendItem[];
+                    },
+                  },
+                  // Custom: show tooltip on hover (handled below)
+                },
+                // Custom plugin to show shadcn/ui Tooltip on legend hover
+                tooltip: {
+                  enabled: true,
+                  callbacks: {
+                    label: function(context) {
+                      const label = context.dataset.label || '';
+                      const sec = MCAT_SECTIONS.find(s => s.id === label);
+                      return sec ? `${label}: ${sec.name} — ${sec.description}` : label;
+                    }
+                  }
+                }
+              },
+              scales: { y: { min: 110, max: 135 } },
+            }}
+            height={120}
+          />
+        </div>
+      )}
+      {/* Score Input Dialog (unchanged) */}
+      <Dialog open={scoreDialogOpen} onOpenChange={setScoreDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add MCAT Section Score</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label>Test/Source Name</Label>
+            <Input name="source" value={scoreForm.source} onChange={handleScoreInput} placeholder="e.g. AAMC FL1, Kaplan FL2, Section Bank, Custom" />
+            <Label>Type</Label>
+            <Select value={scoreForm.type} onValueChange={handleScoreType}>
+              <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full-length">Full-length</SelectItem>
+                <SelectItem value="section">Section</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="grid grid-cols-2 gap-4">
+              {MCAT_SECTIONS.map(sec => (
+                <div key={sec.id}>
+                  <Label>{sec.id}</Label>
+                  <Input
+                    name={sec.id}
+                    type="number"
+                    min={118}
+                    max={132}
+                    value={scoreForm[sec.id as keyof ScoreForm]}
+                    onChange={handleScoreInput}
+                    placeholder="---"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleScoreSubmit} disabled={scoreLoading} size="sm">Save</Button>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">Cancel</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )}
 
   return (
     <div className="min-h-screen">
@@ -719,11 +1125,16 @@ export default function SubjectDetailsPage({ params }: PageProps) {
         {/* Header Section */}
         <div className={`flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 ${themeStyles.cardBg} p-6 rounded-lg shadow-lg ${themeStyles.border}`}>
           <div className="flex items-start justify-between w-full">
-                  <div>
+            <div>
               <h1 className="text-3xl font-bold mb-2">{subject.name}</h1>
               {subject.studyStyle === 'exam' && (
                 <span className={`inline-block mb-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${themeStyles.accent}`} style={{ background: 'rgba(59,130,246,0.15)' }}>
                   Exam-based Study
+                </span>
+              )}
+              {subject.studyStyle === 'study' && (
+                <span className={`inline-block mb-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${themeStyles.accent}`} style={{ background: 'rgba(16,185,129,0.15)' }}>
+                  Study-based
                 </span>
               )}
               <p className={themeStyles.textSecondary}>{subject.description}</p>
@@ -737,13 +1148,13 @@ export default function SubjectDetailsPage({ params }: PageProps) {
             >
               <Settings className="w-6 h-6 text-slate-400 hover:text-blue-400" />
             </button>
-                  </div>
+          </div>
           <div className="flex flex-col gap-2 md:items-end">
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 <span className={themeStyles.textSecondary}>Mastery:</span>
                 <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{subject.progress?.averageMastery || 0}%</span>
-                  </div>
+              </div>
               <div className="flex items-center">
                 <span className={themeStyles.textSecondary}>XP:</span>
                 <span className={`font-bold ml-2 ${themeStyles.textPrimary}`}>{subject.progress?.totalXP || 0}</span>
@@ -763,8 +1174,8 @@ export default function SubjectDetailsPage({ params }: PageProps) {
                 <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-white drop-shadow">
                   {subject.progress?.averageMastery || 0}%
                 </span>
-                  </div>
-                </div>
+              </div>
+            </div>
           </div>
         </div>
         {/* Tabs Section */}
@@ -829,46 +1240,6 @@ export default function SubjectDetailsPage({ params }: PageProps) {
             </div>
           </TabsContent>
         </Tabs>
-            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-                <DialogHeader>
-              <DialogTitle>Edit Subject</DialogTitle>
-              <DialogDescription>Update subject details below.</DialogDescription>
-                </DialogHeader>
-            <div className="space-y-4">
-              <Label htmlFor="subjectName">Name</Label>
-              <Input id="subjectName" value={editedName} onChange={e => setEditedName(e.target.value)} />
-              <Label htmlFor="subjectDescription">Description</Label>
-              <Input id="subjectDescription" value={editedDescription} onChange={e => setEditedDescription(e.target.value)} />
-              <Label htmlFor="studyStyle">Study Style</Label>
-              <Select value={editedStudyStyle} onValueChange={setEditedStudyStyle}>
-                <SelectTrigger id="studyStyle">
-                  <SelectValue placeholder="Select study style" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="skill">Skill-based</SelectItem>
-                  <SelectItem value="exam">Exam-based</SelectItem>
-                  <SelectItem value="study">Study-based</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2 mt-4">
-                <Switch id="showExamFeatures" checked={showExamFeatures} onCheckedChange={setShowExamFeatures} />
-                <Label htmlFor="showExamFeatures">Show Exam/Quiz/Review Features</Label>
-                  </div>
-              {(editedStudyStyle === 'exam' || editedStudyStyle === 'study') && (
-                <div className="mt-4">
-                  <ExamModeSettings subject={subject} onUpdate={fetchSubject} compact={true} />
-                  </div>
-              )}
-                </div>
-                <DialogFooter>
-              <Button onClick={handleEditSubject} disabled={isEditing}>Save</Button>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
         {/* After analytics/progress cards, before the end of the main container */}
         {shouldShowExamFeatures && (
           <>
@@ -1360,4 +1731,29 @@ function deleteConceptFromTopics(topics, parentName, name) {
       return topic;
     }
   });
+}
+
+// Add ArchiveDeleteButtons component at the bottom of the file
+function ArchiveDeleteButtons({ subjectId, archived, onArchive, onDelete, loading }) {
+  return (
+    <>
+      <Button
+        variant="secondary"
+        className="bg-yellow-900/80 text-yellow-300 border-yellow-700 hover:bg-yellow-800 hover:text-yellow-100"
+        onClick={onArchive}
+        disabled={archived || loading}
+        size="sm"
+      >
+        {archived ? 'Archived' : 'Archive Subject'}
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={onDelete}
+        disabled={loading}
+        size="sm"
+      >
+        Delete Subject
+      </Button>
+    </>
+  );
 } 

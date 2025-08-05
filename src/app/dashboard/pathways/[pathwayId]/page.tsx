@@ -86,7 +86,7 @@ export default function PathwayDetailPage() {
                 <span>{subject.name}</span>
                 <button
                   className="ml-4 px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
-                  onClick={() => router.push(`/subjects/${subject.id}`)}
+                  onClick={() => router.push(`/dashboard/subjects/${subject.id}`)}
                 >
                   Go to Subject
                 </button>

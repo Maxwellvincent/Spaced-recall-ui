@@ -8,7 +8,7 @@ interface WeakTopicCardProps {
 
 export function WeakTopicCard({ subject, topic }: WeakTopicCardProps) {
   return (
-    <Link href={`/subjects/${encodeURIComponent(subject.id)}`}>
+    <Link href={`/dashboard/subjects/${encodeURIComponent(subject.id)}`}>
       <div className="bg-slate-700 p-4 rounded-lg hover:bg-slate-600 transition">
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-medium">{topic.name}</h3>

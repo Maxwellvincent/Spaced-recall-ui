@@ -7,6 +7,7 @@
     "build": "next build",
     "build-original": "cross-env NEXT_SKIP_INITIAL_SETUP=1 NEXT_DISABLE_PRERENDER=1 npx next build",
     "build-vercel": "node setup-env.js && node vercel-build.js",
+    "build:dev": "vite build --mode development",
     "start": "next start",
     "lint": "next lint",
     "migrate-subjects": "ts-node -P src/scripts/tsconfig.json src/scripts/migrateSubjects.ts",
@@ -28,6 +29,7 @@
     "@notionhq/client": "^3.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-checkbox": "^1.2.3",
+    "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.10",
     "@radix-ui/react-dropdown-menu": "^2.1.11",
     "@radix-ui/react-label": "^2.1.6",
@@ -52,6 +54,7 @@
     "firebase": "^11.7.3",
     "firebase-admin": "^11.11.1",
     "framer-motion": "^11.18.2",
+    "geist": "^1.4.2",
     "google-auth-library": "^9.15.1",
     "googleapis": "^148.0.0",
     "gray-matter": "^4.0.3",
@@ -71,8 +74,7 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
     "uuid": "^11.1.0",
-    "zod": "^3.24.4",
-    "geist": "^1.4.2"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",

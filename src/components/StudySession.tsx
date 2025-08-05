@@ -264,7 +264,7 @@ export default function StudySession({ subjectId, topicName }: StudySessionProps
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link
-            href={`/subjects/${subjectId}`}
+            href={`/dashboard/subjects/${subjectId}`}
             className="inline-flex items-center hover:text-foreground/80"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

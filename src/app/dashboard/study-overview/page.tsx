@@ -315,7 +315,7 @@ export default function StudyOverviewPage() {
 
                         <div className="mt-6 flex justify-end">
                           <Link
-                            href={`/subjects/${subject.id}`}
+                            href={`/dashboard/subjects/${subject.id}`}
                             className="luxury-card px-4 py-2 flex items-center gap-2 hover:shadow-lg transition-all"
                           >
                             View Subject
@@ -338,7 +338,7 @@ export default function StudyOverviewPage() {
                 </p>
                 {subjectNodes.length === 0 && (
                   <Link
-                    href="/subjects/create"
+                    href="/dashboard/subjects/create"
                     className="luxury-card px-4 py-2 inline-flex items-center gap-2 mt-4 hover:shadow-lg transition-all"
                   >
                     Create Your First Subject

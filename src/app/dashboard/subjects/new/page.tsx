@@ -8,7 +8,7 @@ export default function RedirectToCreatePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/subjects/create");
+    router.replace("/dashboard/subjects/create");
   }, [router]);
 
   return (

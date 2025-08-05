@@ -164,8 +164,9 @@ export default function Navbar() {
       label: "Pathways",
       icon: <Brain className="h-5 w-5 text-blue-400" />,
       children: [
+        { href: "/dashboard/pathways/explore", label: "Explore Pathways", icon: <Brain className="h-5 w-5 text-blue-400" /> },
         { href: "/dashboard/pathways", label: "Your Pathways", icon: <Brain className="h-5 w-5 text-blue-400" /> },
-        { href: "/dashboard/subjects/mcat-mastery", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
+        { href: "/dashboard/subjects", label: "Subjects", icon: <BookOpen className="h-5 w-5" /> },
       ]
     },
     {
@@ -198,9 +199,9 @@ export default function Navbar() {
         { href: "/dashboard/activities/new/timed", label: "New Timed Activity", icon: <Plus className="h-5 w-5" /> },
       ]
     },
-    { href: "/study-logger", label: "Study Logger", icon: <Clock className="h-5 w-5" /> },
-    { href: "/study-overview", label: "Study Overview", icon: <BarChart className="h-5 w-5" /> },
-    { href: "/spaced-recall", label: "Spaced Recall", icon: <Brain className="h-5 w-5" /> },
+    { href: "/dashboard/study-logger", label: "Study Logger", icon: <Clock className="h-5 w-5" /> },
+    { href: "/dashboard/study-overview", label: "Study Overview", icon: <BarChart className="h-5 w-5" /> },
+    { href: "/dashboard/spaced-recall", label: "Spaced Recall", icon: <Brain className="h-5 w-5" /> },
     { href: "/rewards", label: "Rewards", icon: <Gift className="h-5 w-5" /> },
   ];
 
